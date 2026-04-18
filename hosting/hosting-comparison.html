@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ホスティングサービス比較</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+      background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+      min-height: 100vh;
+      padding: 40px 20px;
+      color: #e0e0e0;
+    }
+
+    .container {
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: linear-gradient(90deg, #00d2ff, #7b2ff7, #ff6b9d);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #8888aa;
+      font-size: 0.9rem;
+      margin-bottom: 40px;
+    }
+
+    .table-wrapper {
+      overflow-x: auto;
+      border-radius: 16px;
+      box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(10px);
+    }
+
+    thead th {
+      padding: 20px 16px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+    }
+
+    thead th:first-child {
+      background: rgba(255, 255, 255, 0.02);
+      text-align: left;
+      color: #8888aa;
+      border-radius: 16px 0 0 0;
+    }
+
+    .col-netlify { color: #00c7b7; background: rgba(0, 199, 183, 0.06); }
+    .col-vercel { color: #f5f5f5; background: rgba(255, 255, 255, 0.04); }
+    .col-cloudflare { color: #f6821f; background: rgba(246, 130, 31, 0.06); }
+    .col-github { color: #c9d1d9; background: rgba(201, 209, 217, 0.04); }
+
+    thead th:last-child { border-radius: 0 16px 0 0; }
+
+    .service-logo {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .service-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .icon-netlify { background: linear-gradient(135deg, #00c7b7, #00a99d); color: #fff; }
+    .icon-vercel { background: linear-gradient(135deg, #fff, #ccc); color: #000; }
+    .icon-cloudflare { background: linear-gradient(135deg, #f6821f, #f9a825); color: #fff; }
+    .icon-github { background: linear-gradient(135deg, #6e7681, #484f58); color: #fff; }
+
+    tbody tr {
+      transition: background 0.2s;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    tbody td {
+      padding: 14px 16px;
+      font-size: 0.9rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    tbody td:first-child {
+      text-align: left;
+      font-weight: 600;
+      color: #b0b0cc;
+      white-space: nowrap;
+      position: relative;
+      padding-left: 20px;
+    }
+
+    tbody td:first-child::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 60%;
+      border-radius: 2px;
+      background: linear-gradient(180deg, #7b2ff7, #00d2ff);
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+
+    tbody tr:hover td:first-child::before {
+      opacity: 1;
+    }
+
+    tbody tr:last-child td:first-child { border-radius: 0 0 0 16px; }
+    tbody tr:last-child td:last-child { border-radius: 0 0 16px 0; }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.78rem;
+      font-weight: 600;
+    }
+
+    .badge-best {
+      background: linear-gradient(135deg, rgba(0, 210, 255, 0.15), rgba(123, 47, 247, 0.15));
+      color: #7bcfff;
+      border: 1px solid rgba(0, 210, 255, 0.2);
+    }
+
+    .badge-good {
+      background: rgba(76, 175, 80, 0.12);
+      color: #81c784;
+      border: 1px solid rgba(76, 175, 80, 0.2);
+    }
+
+    .badge-ok {
+      background: rgba(255, 193, 7, 0.1);
+      color: #ffd54f;
+      border: 1px solid rgba(255, 193, 7, 0.15);
+    }
+
+    .badge-weak {
+      background: rgba(244, 67, 54, 0.1);
+      color: #ef9a9a;
+      border: 1px solid rgba(244, 67, 54, 0.15);
+    }
+
+    .check { color: #81c784; }
+    .cross { color: #ef9a9a; }
+    .partial { color: #ffd54f; }
+
+    .section-row td {
+      background: rgba(123, 47, 247, 0.05);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      color: #7b6faa;
+      padding: 10px 16px;
+      border-bottom: 1px solid rgba(123, 47, 247, 0.1);
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-top: 32px;
+    }
+
+    .summary-card {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      padding: 20px;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .summary-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    .summary-card h3 {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+
+    .summary-card p {
+      font-size: 0.82rem;
+      color: #8888aa;
+      line-height: 1.5;
+    }
+
+    .card-netlify h3 { color: #00c7b7; }
+    .card-vercel h3 { color: #f5f5f5; }
+    .card-cloudflare h3 { color: #f6821f; }
+    .card-github h3 { color: #c9d1d9; }
+
+    .footer {
+      text-align: center;
+      margin-top: 32px;
+      color: #555;
+      font-size: 0.75rem;
+    }
+
+    @media (max-width: 700px) {
+      h1 { font-size: 1.4rem; }
+      thead th, tbody td { padding: 10px 10px; font-size: 0.8rem; }
+      .service-icon { width: 28px; height: 28px; font-size: 0.85rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>静的ホスティングサービス比較</h1>
+    <p class="subtitle">Netlify / Vercel / Cloudflare Pages / GitHub Pages</p>
+
+    <div class="table-wrapper">
+      <table>
+        <thead>
+          <tr>
+            <th>比較項目</th>
+            <th class="col-netlify">
+              <div class="service-logo">
+                <div class="service-icon icon-netlify">N</div>
+                Netlify
+              </div>
+            </th>
+            <th class="col-vercel">
+              <div class="service-logo">
+                <div class="service-icon icon-vercel">▲</div>
+                Vercel
+              </div>
+            </th>
+            <th class="col-cloudflare">
+              <div class="service-logo">
+                <div class="service-icon icon-cloudflare">C</div>
+                Cloudflare Pages
+              </div>
+            </th>
+            <th class="col-github">
+              <div class="service-logo">
+                <div class="service-icon icon-github">G</div>
+                GitHub Pages
+              </div>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 基本情報 -->
+          <tr class="section-row"><td colspan="5">基本情報</td></tr>
+          <tr>
+            <td>本業・強み</td>
+            <td>静的サイト<br>ホスティング</td>
+            <td>フロントエンド<br>プラットフォーム</td>
+            <td>CDN・DNS<br>セキュリティ</td>
+            <td>ソースコード<br>管理（Git）</td>
+          </tr>
+          <tr>
+            <td>向いている人</td>
+            <td><span class="badge badge-best">初心者に最適</span></td>
+            <td>フロントエンド開発者</td>
+            <td>速度・規模重視</td>
+            <td>Git利用者</td>
+          </tr>
+          <tr>
+            <td>商用利用</td>
+            <td><span class="check">✔</span> 可能</td>
+            <td><span class="check">✔</span> 可能</td>
+            <td><span class="check">✔</span> 可能</td>
+            <td><span class="cross">✘</span> 原則不可</td>
+          </tr>
+
+          <!-- アップロード・デプロイ -->
+          <tr class="section-row"><td colspan="5">アップロード・デプロイ</td></tr>
+          <tr>
+            <td>ドラッグ&ドロップ</td>
+            <td><span class="check">✔</span> <span class="badge badge-best">対応</span></td>
+            <td><span class="cross">✘</span></td>
+            <td><span class="check">✔</span> 対応</td>
+            <td><span class="cross">✘</span></td>
+          </tr>
+          <tr>
+            <td>Git連携</td>
+            <td><span class="check">✔</span></td>
+            <td><span class="check">✔</span></td>
+            <td><span class="check">✔</span></td>
+            <td><span class="check">✔</span> 必須</td>
+          </tr>
+          <tr>
+            <td>Git知識が必要か</td>
+            <td><span class="badge badge-good">不要</span></td>
+            <td><span class="badge badge-ok">ほぼ必要</span></td>
+            <td><span class="badge badge-good">不要</span></td>
+            <td><span class="badge badge-weak">必須</span></td>
+          </tr>
+          <tr>
+            <td>CLI デプロイ</td>
+            <td><span class="check">✔</span></td>
+            <td><span class="check">✔</span></td>
+            <td><span class="check">✔</span></td>
+            <td><span class="partial">△</span> 限定的</td>
+          </tr>
+
+          <!-- 無料枠・制限 -->
+          <tr class="section-row"><td colspan="5">無料枠・制限</td></tr>
+          <tr>
+            <td>帯域幅（月）</td>
+            <td>100 GB</td>
+            <td>100 GB</td>
+            <td><span class="badge badge-best">無制限</span></td>
+            <td>100 GB</td>
+          </tr>
+          <tr>
+            <td>ビルド時間（月）</td>
+            <td>300 分</td>
+            <td>6,000 分</td>
+            <td>500 分</td>
+            <td>2,000 分</td>
+          </tr>
+          <tr>
+            <td>サイト数</td>
+            <td>500</td>
+            <td>200</td>
+            <td><span class="badge badge-best">無制限</span></td>
+            <td>無制限</td>
+          </tr>
+          <tr>
+            <td>ファイルサイズ上限</td>
+            <td>制限なし</td>
+            <td>制限なし</td>
+            <td>25 MB/ファイル</td>
+            <td>100 MB/ファイル</td>
+          </tr>
+
+          <!-- 機能 -->
+          <tr class="section-row"><td colspan="5">機能</td></tr>
+          <tr>
+            <td>HTTPS（SSL）</td>
+            <td><span class="check">✔</span> 自動</td>
+            <td><span class="check">✔</span> 自動</td>
+            <td><span class="check">✔</span> 自動</td>
+            <td><span class="check">✔</span> 自動</td>
+          </tr>
+          <tr>
+            <td>独自ドメイン</td>
+            <td><span class="check">✔</span> 無料</td>
+            <td><span class="check">✔</span> 無料</td>
+            <td><span class="check">✔</span> 無料</td>
+            <td><span class="check">✔</span> 無料</td>
+          </tr>
+          <tr>
+            <td>フォーム機能</td>
+            <td><span class="check">✔</span> 内蔵</td>
+            <td><span class="cross">✘</span></td>
+            <td><span class="cross">✘</span></td>
+            <td><span class="cross">✘</span></td>
+          </tr>
+          <tr>
+            <td>サーバーサイド（SSR）</td>
+            <td><span class="check">✔</span> Functions</td>
+            <td><span class="check">✔</span> <span class="badge badge-best">最強</span></td>
+            <td><span class="check">✔</span> Workers</td>
+            <td><span class="cross">✘</span> 静的のみ</td>
+          </tr>
+          <tr>
+            <td>Next.js 対応</td>
+            <td><span class="partial">△</span> 部分的</td>
+            <td><span class="check">✔</span> <span class="badge badge-best">公式</span></td>
+            <td><span class="check">✔</span> 良好</td>
+            <td><span class="cross">✘</span></td>
+          </tr>
+
+          <!-- パフォーマンス -->
+          <tr class="section-row"><td colspan="5">パフォーマンス</td></tr>
+          <tr>
+            <td>CDN拠点数</td>
+            <td>数十拠点</td>
+            <td>数十拠点</td>
+            <td><span class="badge badge-best">300+ 拠点</span></td>
+            <td>Fastly CDN</td>
+          </tr>
+          <tr>
+            <td>表示速度</td>
+            <td><span class="badge badge-good">速い</span></td>
+            <td><span class="badge badge-good">速い</span></td>
+            <td><span class="badge badge-best">最速クラス</span></td>
+            <td><span class="badge badge-good">速い</span></td>
+          </tr>
+
+          <!-- 使いやすさ -->
+          <tr class="section-row"><td colspan="5">使いやすさ</td></tr>
+          <tr>
+            <td>管理画面の分かりやすさ</td>
+            <td><span class="badge badge-best">◎ 簡単</span></td>
+            <td><span class="badge badge-good">○ 普通</span></td>
+            <td><span class="badge badge-ok">△ やや複雑</span></td>
+            <td><span class="badge badge-ok">△ 設定ファイル中心</span></td>
+          </tr>
+          <tr>
+            <td>日本語情報</td>
+            <td>多い</td>
+            <td>多い</td>
+            <td>少なめ</td>
+            <td>非常に多い</td>
+          </tr>
+          <tr>
+            <td>初心者おすすめ度</td>
+            <td>★★★★★</td>
+            <td>★★★☆☆</td>
+            <td>★★☆☆☆</td>
+            <td>★★☆☆☆</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- サマリーカード -->
+    <div class="summary">
+      <div class="summary-card card-netlify">
+        <h3>🟢 Netlify</h3>
+        <p>とにかく手軽に公開したい人に。ドラッグ＆ドロップで完結。AIで作ったファイルをそのまま公開するのに最適。</p>
+      </div>
+      <div class="summary-card card-vercel">
+        <h3>⚪ Vercel</h3>
+        <p>Next.jsで本格開発するなら一択。SSR・ISR・Edge Functionsなどフロントエンド最先端の機能が充実。</p>
+      </div>
+      <div class="summary-card card-cloudflare">
+        <h3>🟠 Cloudflare Pages</h3>
+        <p>無制限の帯域幅と世界最強クラスのCDN。大規模・高速配信が必要なプロジェクトに。</p>
+      </div>
+      <div class="summary-card card-github">
+        <h3>⚫ GitHub Pages</h3>
+        <p>GitHubユーザーなら追加費用ゼロ。ポートフォリオやOSSドキュメントの定番。商用は非推奨。</p>
+      </div>
+    </div>
+
+    <p class="footer">※ 無料枠の内容は変更される場合があります。最新情報は各サービスの公式サイトをご確認ください。</p>
+  </div>
+</body>
+</html>

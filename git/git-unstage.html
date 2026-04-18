@@ -1,0 +1,777 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>git add を取り消す方法 | Git 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 2.3rem;
+    background: linear-gradient(90deg, #58a6ff, #bc8cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  p { margin-bottom: 12px; }
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  /* シナリオカード */
+  .scenario {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 20px;
+  }
+  .scenario-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .scenario-badge {
+    padding: 4px 12px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--accent);
+    font-size: 0.8rem;
+    font-weight: bold;
+  }
+  .scenario-title {
+    font-size: 1.2rem;
+    font-weight: bold;
+  }
+  .scenario-desc { color: var(--muted); margin-bottom: 14px; }
+
+  pre.cmd {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    color: var(--text);
+    overflow-x: auto;
+    line-height: 1.7;
+  }
+  pre.cmd .comment { color: var(--muted); }
+  pre.cmd .green { color: var(--green); }
+  pre.cmd .yellow { color: var(--yellow); }
+  pre.cmd .red { color: var(--red); }
+  pre.cmd .accent { color: var(--accent); }
+
+  /* 4 エリア フロー図 */
+  .area-flow {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 28px 0 12px;
+  }
+  .area-node {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 14px;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s;
+    position: relative;
+  }
+  .area-node:hover { transform: translateY(-4px); }
+  .area-node .icon { font-size: 2rem; margin-bottom: 10px; }
+  .area-node .name { font-weight: bold; font-size: 1.05rem; margin-bottom: 4px; }
+  .area-node .sub { color: var(--muted); font-size: 0.78rem; margin-bottom: 10px; }
+  .area-node .status {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-family: "SF Mono", Consolas, monospace;
+    font-weight: bold;
+  }
+  .area-node[data-type="workdir"] { border-color: var(--orange); }
+  .area-node[data-type="workdir"] .status { background: rgba(240, 136, 62, 0.15); color: var(--orange); }
+  .area-node[data-type="stage"] { border-color: var(--yellow); }
+  .area-node[data-type="stage"] .status { background: rgba(210, 153, 34, 0.15); color: var(--yellow); }
+  .area-node[data-type="local"] { border-color: var(--green); }
+  .area-node[data-type="local"] .status { background: rgba(63, 185, 80, 0.15); color: var(--green); }
+  .area-node[data-type="remote"] { border-color: var(--purple); }
+  .area-node[data-type="remote"] .status { background: rgba(188, 140, 255, 0.15); color: var(--purple); }
+
+  .area-arrows {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 4px 12.5% 24px;
+    text-align: center;
+  }
+  .area-arrow {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.82rem;
+    position: relative;
+  }
+  .area-arrow .forward { color: var(--green); font-weight: bold; display: block; }
+  .area-arrow .back { color: var(--red); font-weight: bold; display: block; margin-top: 4px; }
+  .area-arrow .back::before { content: "↩ "; }
+
+  .area-legend {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 12px 0 24px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  .area-legend span::before {
+    content: "●";
+    margin-right: 6px;
+    font-size: 1rem;
+  }
+  .area-legend .lg-workdir::before { color: var(--orange); }
+  .area-legend .lg-stage::before { color: var(--yellow); }
+  .area-legend .lg-local::before { color: var(--green); }
+  .area-legend .lg-remote::before { color: var(--purple); }
+
+  /* 状態可視化 */
+  .state-flow {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 16px;
+    margin: 20px 0;
+  }
+  .state-box {
+    background: var(--panel-2);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    padding: 16px;
+    text-align: center;
+  }
+  .state-box.before { border-color: var(--orange); }
+  .state-box.after { border-color: var(--green); }
+  .state-box .label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .state-box .file {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9rem;
+    padding: 4px 0;
+  }
+  .state-box .file .staged { color: var(--green); }
+  .state-box .file .modified { color: var(--orange); }
+  .state-box .file .untracked { color: var(--red); }
+  .state-arrow {
+    color: var(--accent);
+    font-size: 1.6rem;
+    font-weight: bold;
+  }
+
+  /* 比較テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 20px 0;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+
+  /* Tips */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn {
+    background: rgba(240, 136, 62, 0.08);
+    border-left-color: var(--orange);
+  }
+  .tip.danger {
+    background: rgba(248, 81, 73, 0.08);
+    border-left-color: var(--red);
+  }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+  .tip.danger strong { color: var(--red); }
+
+  /* ステップ */
+  .steps {
+    counter-reset: step-counter;
+  }
+  .step-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px 18px 68px;
+    margin-bottom: 14px;
+    position: relative;
+    counter-increment: step-counter;
+  }
+  .step-item::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 20px;
+    top: 18px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #58a6ff, #bc8cff);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+  .step-item h4 {
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+  }
+
+  @media (max-width: 768px) {
+    .state-flow { grid-template-columns: 1fr; }
+    .state-arrow { transform: rotate(90deg); margin: 0 auto; }
+    .area-flow { grid-template-columns: 1fr 1fr; }
+    .area-arrows { display: none; }
+    header h1 { font-size: 1.6rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../index.html">← TOP</a> / Git / git add を取り消す
+</div>
+
+<header>
+  <h1>git add を取り消す方法</h1>
+  <p>ステージングした特定のファイルだけを取り消す完全ガイド</p>
+</header>
+
+<section>
+  <h2>まず状況を整理しよう — ファイルが存在する 4 つのエリア</h2>
+  <p>Git ではファイルが <strong>4 つのエリア</strong>を行き来します。<code>git add</code> で誤ってステージしたファイルは「② Staging Area」に存在している状態です。取り消しとは、これを「① Working Directory」に戻す操作に他なりません。</p>
+
+  <div class="area-flow">
+    <div class="area-node" data-type="workdir">
+      <div class="icon">📝</div>
+      <div class="name">① Working Directory</div>
+      <div class="sub">作業ディレクトリ<br>(編集中のファイル)</div>
+      <span class="status">modified / untracked</span>
+    </div>
+    <div class="area-node" data-type="stage">
+      <div class="icon">📋</div>
+      <div class="name">② Staging Area</div>
+      <div class="sub">ステージング<br>(Index)</div>
+      <span class="status">staged</span>
+    </div>
+    <div class="area-node" data-type="local">
+      <div class="icon">💾</div>
+      <div class="name">③ Local Repository</div>
+      <div class="sub">ローカルリポジトリ<br>(.git)</div>
+      <span class="status">committed</span>
+    </div>
+    <div class="area-node" data-type="remote">
+      <div class="icon">☁️</div>
+      <div class="name">④ Remote Repository</div>
+      <div class="sub">リモート<br>(GitHub 等)</div>
+      <span class="status">pushed</span>
+    </div>
+  </div>
+
+  <div class="area-arrows">
+    <div class="area-arrow">
+      <span class="forward">git add →</span>
+      <span class="back">git restore --staged</span>
+    </div>
+    <div class="area-arrow">
+      <span class="forward">git commit →</span>
+      <span class="back">git reset HEAD~1</span>
+    </div>
+    <div class="area-arrow">
+      <span class="forward">git push →</span>
+      <span class="back">(force push が必要)</span>
+    </div>
+  </div>
+
+  <div class="area-legend">
+    <span class="lg-workdir">Working Directory</span>
+    <span class="lg-stage">Staging Area</span>
+    <span class="lg-local">Local Repository</span>
+    <span class="lg-remote">Remote Repository</span>
+  </div>
+
+  <h3>git status が表示する 3 つの状態</h3>
+  <p>上の 4 エリアのうち「① Working Directory」にあるファイルは、さらに 3 つの状態に分かれます。<code>git status</code> の出力はこの区分を示しています。</p>
+  <table>
+    <tr><th>状態</th><th>どのエリア?</th><th>説明</th><th>git status 表示</th></tr>
+    <tr><td><code>staged</code></td><td>② Staging Area</td><td>次のコミットに含まれる</td><td>Changes to be committed</td></tr>
+    <tr><td><code>modified</code></td><td>① Working Directory</td><td>編集済みだがステージ前</td><td>Changes not staged for commit</td></tr>
+    <tr><td><code>untracked</code></td><td>① Working Directory</td><td>一度も add されていない新規ファイル</td><td>Untracked files</td></tr>
+  </table>
+
+  <div class="tip">
+    <strong>取り消し = エリアを 1 つ戻す操作:</strong> <code>git add</code> は ① → ② の移動。取り消しは ② → ① の逆移動です。ファイルの <em>中身</em> はどちらのエリアでも同じで、「Git から見たラベル」だけが変わります。
+  </div>
+  <div class="tip warn">
+    <strong>最初のアクション:</strong> 迷ったら必ず <code>git status</code> で現在の状態を確認しましょう。Git は親切にも、取り消し用のコマンドも提示してくれます。
+  </div>
+</section>
+
+<section>
+  <h2>どうやったら modified になるのか — ファイル状態の遷移</h2>
+  <p><code>modified</code> とは「一度 Git に追跡された (tracked) ファイルが、作業ツリー上で編集されて差分を持った状態」を指します。つまり <strong>untracked なファイルは直接 modified にはなりません</strong>。ここでは committed / staged / modified / untracked の関係を、循環図と 3 つの典型パターンで整理します。</p>
+
+  <div class="area-flow">
+    <div class="area-node" data-type="remote" style="border-color: var(--red);">
+      <div class="icon">🆕</div>
+      <div class="name">Untracked</div>
+      <div class="sub">Git が<br>まだ知らない</div>
+      <span class="status" style="background: rgba(248, 81, 73, 0.15); color: var(--red);">untracked</span>
+    </div>
+    <div class="area-node" data-type="workdir">
+      <div class="icon">✏️</div>
+      <div class="name">Modified</div>
+      <div class="sub">tracked かつ<br>編集済み</div>
+      <span class="status">modified</span>
+    </div>
+    <div class="area-node" data-type="stage">
+      <div class="icon">📋</div>
+      <div class="name">Staged</div>
+      <div class="sub">index に<br>登録済み</div>
+      <span class="status">staged</span>
+    </div>
+    <div class="area-node" data-type="local">
+      <div class="icon">✅</div>
+      <div class="name">Committed</div>
+      <div class="sub">履歴に<br>記録済み</div>
+      <span class="status">committed</span>
+    </div>
+  </div>
+
+  <div class="area-arrows">
+    <div class="area-arrow">
+      <span class="forward">git add →</span>
+      <span class="back" style="color: var(--orange);">↩ 編集すると modified に戻る</span>
+    </div>
+    <div class="area-arrow">
+      <span class="forward">編集する →</span>
+      <span class="back" style="color: var(--yellow);">↩ git add で staged へ</span>
+    </div>
+    <div class="area-arrow">
+      <span class="forward">git commit →</span>
+      <span class="back" style="color: var(--green);">↩ committed → 編集で再び modified</span>
+    </div>
+  </div>
+
+  <div class="tip warn" style="margin-top: 4px;">
+    <strong>重要な前提:</strong> <span style="color: var(--red);">Untracked → Modified の直接遷移は存在しません</span>。新規ファイルは一度 <code>git add</code> → <code>git commit</code> を経て tracked になって初めて、次回の編集で <code>modified</code> を名乗れます。<code>modified</code> は「過去に Git が知っている状態」との差分のことだからです。
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-head">
+      <span class="scenario-badge" style="color: var(--green);">パターン A</span>
+      <span class="scenario-title">committed → modified（コミット済を編集）</span>
+    </div>
+    <p class="scenario-desc">もっとも基本のケース。以前コミットしたファイルを編集すると、作業ツリーと HEAD の間に差分が生まれて <code>modified</code> になります。</p>
+
+    <div class="state-flow">
+      <div class="state-box before" style="border-color: var(--green);">
+        <div class="label">Before</div>
+        <div class="file"><span class="staged">● committed:</span> app.js</div>
+      </div>
+      <div class="state-arrow">→</div>
+      <div class="state-box after" style="border-color: var(--orange);">
+        <div class="label">After (ファイルを編集)</div>
+        <div class="file"><span class="modified">● modified:</span> app.js</div>
+      </div>
+    </div>
+
+    <pre class="cmd"><span class="comment"># コミット済ファイルに 1 行追記</span>
+<span class="green">$ echo "// new line" &gt;&gt; app.js</span>
+<span class="green">$ git status</span>
+<span class="yellow">Changes not staged for commit:</span>
+<span class="red">  modified:   app.js</span></pre>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-head">
+      <span class="scenario-badge" style="color: var(--yellow);">パターン B</span>
+      <span class="scenario-title">staged → modified（add 後に再編集 / 同時保持）</span>
+    </div>
+    <p class="scenario-desc"><code>git add</code> した後でさらに同じファイルを編集した場合、<strong>staged な内容</strong>（add した瞬間のスナップショット）と <strong>modified な内容</strong>（その後の追加編集）の両方を同時に保持する状態になります。</p>
+
+    <div class="state-flow">
+      <div class="state-box before" style="border-color: var(--yellow);">
+        <div class="label">Before (add 済み)</div>
+        <div class="file"><span class="staged">● staged:</span> app.js</div>
+      </div>
+      <div class="state-arrow">→</div>
+      <div class="state-box after" style="border-color: var(--orange);">
+        <div class="label">After (さらに編集)</div>
+        <div class="file"><span class="staged">● staged:</span> app.js <span style="color: var(--muted); font-size: 0.78rem;">(add 時点の差分)</span></div>
+        <div class="file"><span class="modified">● modified:</span> app.js <span style="color: var(--muted); font-size: 0.78rem;">(それ以降の差分)</span></div>
+      </div>
+    </div>
+
+    <pre class="cmd"><span class="comment"># add した後でもう一度編集</span>
+<span class="green">$ git add app.js</span>
+<span class="green">$ echo "// more" &gt;&gt; app.js</span>
+<span class="green">$ git status</span>
+<span class="yellow">Changes to be committed:</span>
+<span class="green">  modified:   app.js</span>
+<span class="yellow">Changes not staged for commit:</span>
+<span class="red">  modified:   app.js</span>   <span class="comment"># ← 同じファイルが 2 箇所に！</span></pre>
+
+    <div class="tip">
+      <strong>ポイント:</strong> Git は「index（staged スナップショット）」と「作業ツリー」を別々に管理しているため、同一ファイルが両方に現れても矛盾しません。<code>git diff</code> が作業ツリーとの差分、<code>git diff --staged</code> が index との差分を見せてくれます。
+    </div>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-head">
+      <span class="scenario-badge" style="color: var(--red);">パターン C</span>
+      <span class="scenario-title">untracked は modified にならない（反例）</span>
+    </div>
+    <p class="scenario-desc">新規作成したばかりのファイルは、Git から見れば「比較対象がない」ため差分が計算できません。したがって <code>modified</code> ではなく <code>untracked</code> として扱われます。</p>
+
+    <div class="state-flow">
+      <div class="state-box before" style="border-color: var(--red);">
+        <div class="label">Before (新規作成)</div>
+        <div class="file"><span class="untracked">● untracked:</span> new-file.txt</div>
+      </div>
+      <div class="state-arrow">→</div>
+      <div class="state-box after" style="border-color: var(--red);">
+        <div class="label">After (まだ untracked のまま)</div>
+        <div class="file"><span class="untracked">● untracked:</span> new-file.txt</div>
+      </div>
+    </div>
+
+    <pre class="cmd"><span class="green">$ touch new-file.txt</span>
+<span class="green">$ git status</span>
+<span class="yellow">Untracked files:</span>
+<span class="red">  new-file.txt</span>   <span class="comment"># ← modified ではない</span></pre>
+
+    <div class="tip warn">
+      <strong>反例として覚える:</strong> 「ファイルを作った / 編集した」だけでは <code>modified</code> にはなりません。<strong>一度でも Git の追跡下に入ったか</strong>（= 過去に add → commit されたか）が分岐点です。新規ファイルは <code>git add</code> してはじめて Git の世界に入り、次回以降の編集で <code>modified</code> を名乗れるようになります。
+    </div>
+  </div>
+
+  <h3>確認コマンド 3 ステップ</h3>
+  <div class="steps">
+    <div class="step-item">
+      <h4>git status — ファイルごとの状態ラベルを見る</h4>
+      <p>どのファイルが <code>staged</code> / <code>modified</code> / <code>untracked</code> のどれなのかを一覧で確認します。まず最初にこれを打つのが鉄則です。</p>
+      <pre class="cmd"><span class="green">$ git status</span>
+<span class="yellow">Changes to be committed:</span>      <span class="comment"># ← staged</span>
+<span class="yellow">Changes not staged for commit:</span>  <span class="comment"># ← modified</span>
+<span class="yellow">Untracked files:</span>               <span class="comment"># ← untracked</span></pre>
+    </div>
+
+    <div class="step-item">
+      <h4>git diff — 作業ツリーと index の差分（= 未 add の編集）</h4>
+      <p><code>modified</code> として表示されている部分、つまり「add 後に追加した編集」や「まだ add していない編集」の中身を確認します。</p>
+      <pre class="cmd"><span class="green">$ git diff</span>           <span class="comment"># modified な差分のみが見える</span></pre>
+    </div>
+
+    <div class="step-item">
+      <h4>git diff --staged — index と HEAD の差分（= add 済みの内容）</h4>
+      <p><code>staged</code> として表示されている部分、つまり「次の <code>git commit</code> で履歴に残る内容」を確認します。パターン B の状況でも、この 2 つを併用すれば「どちらの差分か」をきれいに切り分けられます。</p>
+      <pre class="cmd"><span class="green">$ git diff --staged</span>   <span class="comment"># staged な差分のみが見える</span>
+<span class="comment"># (別名: git diff --cached でも同じ)</span></pre>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>まとめ:</strong> <code>modified</code> は「<em>一度 Git に追跡された</em>ファイルが、index または HEAD と異なる内容を作業ツリーに持つ状態」。untracked は追跡前なので modified にはなりません。add 後の再編集では staged と modified が同居し、<code>git diff</code> / <code>git diff --staged</code> でそれぞれの差分を別々に覗けます。
+  </div>
+</section>
+
+<section>
+  <h2>特定のファイルだけステージングを取り消す</h2>
+
+  <div class="scenario">
+    <div class="scenario-head">
+      <span class="scenario-badge">推奨</span>
+      <span class="scenario-title">✅ git restore --staged &lt;file&gt; (Git 2.23+)</span>
+    </div>
+    <p class="scenario-desc">現在推奨されている方法。ファイルの中身はそのままに、ステージングだけを解除します。</p>
+
+    <pre class="cmd"><span class="comment"># 1 ファイルだけ取り消す</span>
+<span class="green">$ git restore --staged index.html</span>
+
+<span class="comment"># 複数ファイルをまとめて</span>
+<span class="green">$ git restore --staged index.html style.css</span>
+
+<span class="comment"># ディレクトリ配下すべて</span>
+<span class="green">$ git restore --staged src/</span>
+
+<span class="comment"># 全ステージングを取り消す</span>
+<span class="green">$ git restore --staged .</span></pre>
+
+    <div class="state-flow">
+      <div class="state-box before">
+        <div class="label">Before</div>
+        <div class="file"><span class="staged">● staged:</span> index.html</div>
+        <div class="file"><span class="staged">● staged:</span> style.css</div>
+      </div>
+      <div class="state-arrow">→</div>
+      <div class="state-box after">
+        <div class="label">After (index.html のみ取り消し)</div>
+        <div class="file"><span class="modified">● modified:</span> index.html</div>
+        <div class="file"><span class="staged">● staged:</span> style.css</div>
+      </div>
+    </div>
+
+    <div class="tip">
+      <strong>ポイント:</strong> ファイルの <em>中身</em> は一切変更されません。ステージングだけが解除され、編集内容は作業ディレクトリに残ります。
+    </div>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-head">
+      <span class="scenario-badge">従来</span>
+      <span class="scenario-title">🔄 git reset HEAD &lt;file&gt; (古い Git でも使える)</span>
+    </div>
+    <p class="scenario-desc">Git 2.23 より前からある古くからの方法。動作は <code>git restore --staged</code> とほぼ同じです。</p>
+
+    <pre class="cmd"><span class="comment"># 1 ファイルだけ取り消す</span>
+<span class="green">$ git reset HEAD index.html</span>
+
+<span class="comment"># HEAD は省略可能</span>
+<span class="green">$ git reset index.html</span>
+
+<span class="comment"># 全部まとめて取り消す</span>
+<span class="green">$ git reset</span></pre>
+
+    <div class="tip warn">
+      <strong>注意:</strong> <code>git reset</code> は使い方を誤ると履歴を壊す危険があります。ファイル指定なしで <code>--hard</code> を付けると作業内容が消えるので要注意。特定ファイルのステージ解除だけなら <code>git restore --staged</code> の方が安全です。
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>新規ファイル (Untracked) を add してしまった場合</h2>
+  <p>初回の <code>git add</code> でステージに入れた新規ファイルを取り消したい場合も、手順は同じです。</p>
+
+  <pre class="cmd"><span class="comment"># ステージから外す (ファイル自体はそのまま残る)</span>
+<span class="green">$ git restore --staged newfile.txt</span>
+
+<span class="comment"># git status で確認すると「Untracked files」に戻っている</span>
+<span class="green">$ git status</span>
+<span class="yellow">Untracked files:</span>
+<span class="red">  newfile.txt</span></pre>
+
+  <div class="tip">
+    <strong>なぜ Untracked に戻るのか?</strong> 新規ファイルは元々 Git が知らないので、ステージ解除すると「Git が知らないファイル = Untracked」状態に戻ります。
+  </div>
+</section>
+
+<section>
+  <h2>手順まとめ (実践フロー)</h2>
+  <div class="steps">
+    <div class="step-item">
+      <h4>現状を確認する</h4>
+      <p>どのファイルがステージされているかを <code>git status</code> で確認します。</p>
+      <pre class="cmd"><span class="green">$ git status</span></pre>
+    </div>
+
+    <div class="step-item">
+      <h4>取り消したいファイルを特定する</h4>
+      <p>「Changes to be committed:」セクションに並んでいるファイルから、ステージから外したいものを決めます。</p>
+    </div>
+
+    <div class="step-item">
+      <h4>git restore --staged で取り消す</h4>
+      <p>対象ファイルのパスを指定して実行します。</p>
+      <pre class="cmd"><span class="green">$ git restore --staged &lt;file&gt;</span></pre>
+    </div>
+
+    <div class="step-item">
+      <h4>再度 git status で結果を確認</h4>
+      <p>対象ファイルが「Changes not staged for commit」または「Untracked files」に移動していれば成功です。</p>
+      <pre class="cmd"><span class="green">$ git status</span></pre>
+    </div>
+
+    <div class="step-item">
+      <h4>必要なファイルだけ改めて add する</h4>
+      <p>コミットしたいファイルだけを選んで再度ステージに入れます。</p>
+      <pre class="cmd"><span class="green">$ git add &lt;necessary-file&gt;</span>
+<span class="green">$ git commit -m "意図したファイルだけをコミット"</span></pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>コマンド比較早見表</h2>
+  <table>
+    <tr>
+      <th>コマンド</th>
+      <th>動作</th>
+      <th>作業ディレクトリ</th>
+      <th>推奨度</th>
+    </tr>
+    <tr>
+      <td><code>git restore --staged &lt;file&gt;</code></td>
+      <td>指定ファイルをステージから外す</td>
+      <td>変化なし</td>
+      <td>★★★ 最推奨</td>
+    </tr>
+    <tr>
+      <td><code>git reset HEAD &lt;file&gt;</code></td>
+      <td>同上 (古い書き方)</td>
+      <td>変化なし</td>
+      <td>★★ 互換用</td>
+    </tr>
+    <tr>
+      <td><code>git reset</code></td>
+      <td>全ファイルをステージから外す</td>
+      <td>変化なし</td>
+      <td>★★ 一括用</td>
+    </tr>
+    <tr>
+      <td><code>git restore &lt;file&gt;</code></td>
+      <td>作業ディレクトリの変更も破棄</td>
+      <td><strong style="color: var(--red);">変更が消える</strong></td>
+      <td>★ 要注意</td>
+    </tr>
+    <tr>
+      <td><code>git reset --hard</code></td>
+      <td>ステージも作業ディレクトリも全部破棄</td>
+      <td><strong style="color: var(--red);">すべて消える</strong></td>
+      <td>最終手段</td>
+    </tr>
+  </table>
+
+  <div class="tip danger">
+    <strong>混同注意:</strong> <code>git restore &lt;file&gt;</code> (<code>--staged</code> なし) は作業ディレクトリのファイルを HEAD の状態まで戻してしまいます。編集内容が消えるので、ステージ取り消しのつもりで実行しないでください。
+  </div>
+</section>
+
+<section>
+  <h2>よくある質問</h2>
+
+  <div class="scenario">
+    <div class="scenario-head">
+      <span class="scenario-badge">Q1</span>
+      <span class="scenario-title">取り消すとファイルの中身は消えますか?</span>
+    </div>
+    <p>いいえ。<code>git restore --staged</code> や <code>git reset HEAD &lt;file&gt;</code> はステージング領域の状態だけを変更し、作業ディレクトリには手を付けません。編集内容は安全です。</p>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-head">
+      <span class="scenario-badge">Q2</span>
+      <span class="scenario-title">まだ 1 度もコミットしていないリポジトリでも使えますか?</span>
+    </div>
+    <p>使えます。ただし最初のコミット前は <code>HEAD</code> が存在しないので、<code>git reset HEAD &lt;file&gt;</code> はエラーになる場合があります。その場合は <code>git rm --cached &lt;file&gt;</code> を使いましょう。</p>
+    <pre class="cmd"><span class="green">$ git rm --cached newfile.txt</span></pre>
+  </div>
+
+  <div class="scenario">
+    <div class="scenario-head">
+      <span class="scenario-badge">Q3</span>
+      <span class="scenario-title">ワイルドカードで複数ファイルを一度に指定できますか?</span>
+    </div>
+    <p>できます。シェルが展開するパターンも、Git がマッチさせるパスも両方使えます。</p>
+    <pre class="cmd"><span class="comment"># *.log にマッチするステージ済みファイルを取り消す</span>
+<span class="green">$ git restore --staged "*.log"</span></pre>
+  </div>
+</section>
+
+<footer style="text-align:center; color:var(--muted); padding:24px 0; border-top:1px solid var(--border); margin-top:40px;">
+  <p>Git Unstage Guide · 2026</p>
+  <p style="margin-top: 8px;"><a href="../index.html" style="color: var(--accent); text-decoration: none;">← 目次に戻る</a></p>
+</footer>
+
+</div>
+</body>
+</html>

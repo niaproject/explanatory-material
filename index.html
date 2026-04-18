@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="技術トピックに関する解説資料をまとめたサイト。Git コマンド、ホスティングサービス比較など。" />
+  <title>Explanatory Material | 技術解説資料</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-elev: #1e293b;
+      --fg: #f1f5f9;
+      --fg-muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-hover: #7dd3fc;
+      --border: #334155;
+      --card-bg: rgba(30, 41, 59, 0.7);
+      --shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+
+      --cat-git: #f97316;
+      --cat-hosting: #a855f7;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans",
+        "Yu Gothic UI", "Meiryo", sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+      line-height: 1.7;
+      min-height: 100vh;
+      background-image:
+        radial-gradient(circle at 20% 0%, rgba(56, 189, 248, 0.15) 0%, transparent 40%),
+        radial-gradient(circle at 80% 100%, rgba(168, 85, 247, 0.12) 0%, transparent 40%);
+      background-attachment: fixed;
+    }
+
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 4rem 1.5rem;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 3rem;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.35rem 0.9rem;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      border-radius: 999px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #f1f5f9 0%, #38bdf8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+    }
+
+    .lead {
+      font-size: 1.05rem;
+      color: var(--fg-muted);
+      max-width: 640px;
+      margin: 0 auto;
+    }
+
+    /* Tabs */
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 2rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .tab {
+      padding: 0.85rem 1.5rem;
+      background: transparent;
+      border: none;
+      color: var(--fg-muted);
+      font-size: 1rem;
+      font-weight: 500;
+      cursor: pointer;
+      position: relative;
+      transition: color 0.2s ease;
+      font-family: inherit;
+    }
+    .tab:hover { color: var(--fg); }
+    .tab.active { color: var(--accent); }
+    .tab.active::after {
+      content: "";
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: -1px;
+      height: 2px;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+    .tab-count {
+      display: inline-block;
+      margin-left: 0.4rem;
+      padding: 0.1rem 0.5rem;
+      background: rgba(148, 163, 184, 0.15);
+      border-radius: 999px;
+      font-size: 0.75rem;
+    }
+    .tab.active .tab-count {
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--accent);
+    }
+
+    .panel { display: none; }
+    .panel.active { display: block; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    h2 {
+      font-size: 1.35rem;
+      font-weight: 600;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+    }
+    h2::before {
+      content: "";
+      display: inline-block;
+      width: 4px;
+      height: 1.1rem;
+      background: var(--accent);
+      border-radius: 2px;
+    }
+
+    /* Updates list */
+    .updates {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .update-item {
+      display: grid;
+      grid-template-columns: auto auto 1fr auto;
+      align-items: center;
+      gap: 1rem;
+      padding: 1rem 1.25rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--fg);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+      backdrop-filter: blur(10px);
+    }
+    .update-item:hover {
+      transform: translateX(4px);
+      border-color: var(--accent);
+    }
+    .update-date {
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.85rem;
+      color: var(--fg-muted);
+      white-space: nowrap;
+    }
+    .cat-chip {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.7rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      white-space: nowrap;
+    }
+    .cat-chip.git { background: rgba(249, 115, 22, 0.15); color: var(--cat-git); border: 1px solid rgba(249, 115, 22, 0.3); }
+    .cat-chip.hosting { background: rgba(168, 85, 247, 0.15); color: var(--cat-hosting); border: 1px solid rgba(168, 85, 247, 0.3); }
+    .update-title {
+      font-weight: 500;
+      font-size: 0.98rem;
+    }
+    .update-arrow {
+      color: var(--fg-muted);
+      font-size: 1.1rem;
+      transition: transform 0.15s ease, color 0.15s ease;
+    }
+    .update-item:hover .update-arrow {
+      transform: translateX(3px);
+      color: var(--accent);
+    }
+
+    /* Category cards */
+    .categories {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1.25rem;
+    }
+    .cat-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.75rem;
+      cursor: pointer;
+      transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+      text-align: left;
+      font-family: inherit;
+      color: var(--fg);
+      backdrop-filter: blur(10px);
+    }
+    .cat-card:hover, .cat-card:focus-visible {
+      transform: translateY(-4px);
+      border-color: var(--accent);
+      box-shadow: var(--shadow);
+      outline: none;
+    }
+    .cat-card[data-cat="git"]:hover { border-color: var(--cat-git); }
+    .cat-card[data-cat="hosting"]:hover { border-color: var(--cat-hosting); }
+    .cat-card .cat-icon { font-size: 2.4rem; margin-bottom: 0.75rem; }
+    .cat-card .cat-name {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+    }
+    .cat-card .cat-count {
+      color: var(--fg-muted);
+      font-size: 0.85rem;
+      margin-bottom: 0.85rem;
+    }
+    .cat-card .cat-desc {
+      color: var(--fg-muted);
+      font-size: 0.9rem;
+    }
+
+    /* Category detail view */
+    .cat-detail { display: none; }
+    .cat-detail.active { display: block; animation: fadeIn 0.25s ease; }
+    .back-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.5rem 0.95rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--fg-muted);
+      font-size: 0.9rem;
+      cursor: pointer;
+      font-family: inherit;
+      margin-bottom: 1.5rem;
+      transition: color 0.15s ease, border-color 0.15s ease;
+    }
+    .back-btn:hover { color: var(--accent); border-color: var(--accent); }
+    .cat-detail-head {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .cat-detail-head .icon { font-size: 1.8rem; }
+    .cat-detail-head h3 {
+      font-size: 1.4rem;
+      font-weight: 600;
+    }
+
+    .page-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+    .page-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 1.1rem 1.35rem;
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--fg);
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .page-item:hover {
+      transform: translateX(4px);
+      border-color: var(--accent);
+    }
+    .page-info .page-title {
+      font-weight: 600;
+      font-size: 1rem;
+      margin-bottom: 0.2rem;
+    }
+    .page-info .page-desc {
+      color: var(--fg-muted);
+      font-size: 0.85rem;
+    }
+    .page-arrow {
+      color: var(--accent);
+      font-size: 1.1rem;
+    }
+
+    footer {
+      margin-top: 4rem;
+      padding-top: 2rem;
+      border-top: 1px solid var(--border);
+      text-align: center;
+      color: var(--fg-muted);
+      font-size: 0.85rem;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 600px) {
+      .container { padding: 2.5rem 1rem; }
+      .update-item {
+        grid-template-columns: auto 1fr auto;
+      }
+      .update-item .update-date { grid-column: 1 / -1; margin-bottom: -0.25rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <span class="badge">📚 Explanatory Material</span>
+      <h1>技術解説資料まとめ</h1>
+      <p class="lead">
+        各種の技術トピックについて、モダンなHTMLで可視化・解説したページを収録しています。
+      </p>
+    </header>
+
+    <nav class="tabs" role="tablist">
+      <button class="tab active" role="tab" data-tab="updates">
+        🕒 更新順<span class="tab-count" id="count-updates">0</span>
+      </button>
+      <button class="tab" role="tab" data-tab="contents">
+        📁 コンテンツ<span class="tab-count" id="count-contents">0</span>
+      </button>
+    </nav>
+
+    <main>
+      <!-- 更新順 -->
+      <section class="panel active" id="panel-updates" role="tabpanel">
+        <h2>最近の更新</h2>
+        <div class="updates" id="updates-list"></div>
+      </section>
+
+      <!-- コンテンツ（カテゴリ） -->
+      <section class="panel" id="panel-contents" role="tabpanel">
+        <div id="cat-index">
+          <h2>カテゴリを選択</h2>
+          <div class="categories" id="cat-list"></div>
+        </div>
+
+        <div class="cat-detail" id="cat-detail">
+          <button class="back-btn" id="back-btn">← カテゴリ一覧に戻る</button>
+          <div class="cat-detail-head">
+            <span class="icon" id="detail-icon"></span>
+            <h3 id="detail-name"></h3>
+          </div>
+          <div class="page-list" id="page-list"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer>
+      <p>Published with <a href="https://pages.github.com/" target="_blank" rel="noopener noreferrer">GitHub Pages</a></p>
+    </footer>
+  </div>
+
+  <script>
+    // ===== データ定義 =====
+    const CATEGORIES = {
+      git: {
+        name: "Git",
+        icon: "🌿",
+        desc: "Git / GitHub の基本操作とトラブルシューティング",
+      },
+      hosting: {
+        name: "Hosting",
+        icon: "🌐",
+        desc: "各種ホスティングサービスの比較と選定",
+      },
+    };
+
+    const PAGES = [
+      {
+        title: "git add の取り消し方",
+        desc: "ステージングしたファイルを特定だけ安全に取り消す手順を図解。",
+        url: "git/git-unstage.html",
+        category: "git",
+        updated: "2026-04-18",
+      },
+      {
+        title: "Git コマンド解説",
+        desc: "add / commit / push と HEAD の関係性を図解。init から push までの流れ付き。",
+        url: "git/git-commands.html",
+        category: "git",
+        updated: "2026-04-18",
+      },
+      {
+        title: "ホスティングサービス比較",
+        desc: "主要ホスティングサービスの特徴や使い分けをまとめて比較。",
+        url: "hosting/hosting-comparison.html",
+        category: "hosting",
+        updated: "2026-04-17",
+      },
+    ];
+
+    // ===== タブ切替 =====
+    const tabs = document.querySelectorAll(".tab");
+    const panels = document.querySelectorAll(".panel");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((t) => t.classList.remove("active"));
+        panels.forEach((p) => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById("panel-" + tab.dataset.tab).classList.add("active");
+        if (tab.dataset.tab === "contents") showCategoryIndex();
+      });
+    });
+
+    // ===== 更新順リスト描画 =====
+    function renderUpdates() {
+      const list = document.getElementById("updates-list");
+      const sorted = [...PAGES].sort((a, b) => b.updated.localeCompare(a.updated));
+      list.innerHTML = sorted
+        .map(
+          (p) => `
+          <a class="update-item" href="${p.url}">
+            <span class="update-date">${p.updated}</span>
+            <span class="cat-chip ${p.category}">${CATEGORIES[p.category].name}</span>
+            <span class="update-title">${p.title}</span>
+            <span class="update-arrow">→</span>
+          </a>`
+        )
+        .join("");
+      document.getElementById("count-updates").textContent = sorted.length;
+    }
+
+    // ===== カテゴリ一覧描画 =====
+    function renderCategories() {
+      const list = document.getElementById("cat-list");
+      const cats = Object.keys(CATEGORIES);
+      list.innerHTML = cats
+        .map((key) => {
+          const cat = CATEGORIES[key];
+          const count = PAGES.filter((p) => p.category === key).length;
+          return `
+          <button class="cat-card" data-cat="${key}">
+            <div class="cat-icon">${cat.icon}</div>
+            <div class="cat-name">${cat.name}</div>
+            <div class="cat-count">${count} 件のページ</div>
+            <div class="cat-desc">${cat.desc}</div>
+          </button>`;
+        })
+        .join("");
+      list.querySelectorAll(".cat-card").forEach((card) => {
+        card.addEventListener("click", () => showCategoryDetail(card.dataset.cat));
+      });
+      document.getElementById("count-contents").textContent = cats.length;
+    }
+
+    // ===== カテゴリ詳細表示 =====
+    function showCategoryDetail(catKey) {
+      const cat = CATEGORIES[catKey];
+      const pages = PAGES.filter((p) => p.category === catKey);
+      document.getElementById("detail-icon").textContent = cat.icon;
+      document.getElementById("detail-name").textContent = cat.name + " の解説一覧";
+      document.getElementById("page-list").innerHTML = pages
+        .map(
+          (p) => `
+          <a class="page-item" href="${p.url}">
+            <div class="page-info">
+              <div class="page-title">${p.title}</div>
+              <div class="page-desc">${p.desc}</div>
+            </div>
+            <span class="page-arrow">→</span>
+          </a>`
+        )
+        .join("");
+      document.getElementById("cat-index").style.display = "none";
+      document.getElementById("cat-detail").classList.add("active");
+    }
+
+    function showCategoryIndex() {
+      document.getElementById("cat-index").style.display = "block";
+      document.getElementById("cat-detail").classList.remove("active");
+    }
+
+    document.getElementById("back-btn").addEventListener("click", showCategoryIndex);
+
+    // ===== 初期化 =====
+    renderUpdates();
+    renderCategories();
+  </script>
+</body>
+</html>

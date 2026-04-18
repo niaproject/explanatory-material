@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Git コマンド図解ガイド</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 2.5rem;
+    background: linear-gradient(90deg, #58a6ff, #bc8cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+
+  /* フロー図 */
+  .flow {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin: 32px 0;
+    position: relative;
+  }
+  .flow-node {
+    background: var(--panel);
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    padding: 24px 16px;
+    text-align: center;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .flow-node:hover { transform: translateY(-4px); border-color: var(--accent); }
+  .flow-node .icon { font-size: 2rem; margin-bottom: 10px; }
+  .flow-node .name {
+    font-weight: bold;
+    font-size: 1.1rem;
+    margin-bottom: 6px;
+  }
+  .flow-node .desc { font-size: 0.85rem; color: var(--muted); }
+  .flow-node[data-type="workdir"] { border-color: var(--orange); }
+  .flow-node[data-type="stage"] { border-color: var(--yellow); }
+  .flow-node[data-type="local"] { border-color: var(--green); }
+  .flow-node[data-type="remote"] { border-color: var(--purple); }
+
+  .flow-arrows {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin: 8px 12.5% 16px;
+    text-align: center;
+  }
+  .arrow {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px;
+    font-family: "SF Mono", Consolas, monospace;
+    color: var(--accent);
+    font-size: 0.9rem;
+  }
+  .arrow .cmd { font-weight: bold; }
+  .arrow .dir { color: var(--muted); display: block; font-size: 0.75rem; }
+
+  /* コマンドカード */
+  .cmd-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+  }
+  .cmd-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .cmd-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+  }
+  .cmd-title {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 1.15rem;
+    color: var(--green);
+    margin-bottom: 10px;
+    font-weight: bold;
+  }
+  .cmd-desc { color: var(--text); margin-bottom: 12px; font-size: 0.95rem; }
+  .cmd-example {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.85rem;
+    color: var(--accent);
+    overflow-x: auto;
+  }
+
+  /* HEAD セクション */
+  .head-diagram {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 28px;
+    margin: 20px 0;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .commit-chain {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    overflow-x: auto;
+    padding: 20px 0;
+  }
+  .commit {
+    min-width: 110px;
+    padding: 16px 10px;
+    background: var(--panel-2);
+    border: 2px solid var(--border);
+    border-radius: 10px;
+    text-align: center;
+    position: relative;
+  }
+  .commit .hash { color: var(--yellow); font-size: 0.85rem; font-weight: bold; }
+  .commit .msg { color: var(--muted); font-size: 0.75rem; margin-top: 4px; }
+  .commit.head {
+    border-color: var(--red);
+    background: rgba(248, 81, 73, 0.1);
+  }
+  .commit.head::before {
+    content: "HEAD";
+    position: absolute;
+    top: -22px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--red);
+    color: white;
+    padding: 2px 10px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: bold;
+  }
+  .commit.head::after {
+    content: "↓";
+    position: absolute;
+    top: -8px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: var(--red);
+  }
+  .arrow-line {
+    color: var(--muted);
+    font-size: 1.4rem;
+    padding: 0 4px;
+  }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 20px 0;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  td code {
+    background: var(--bg);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-size: 0.85rem;
+  }
+  tr:last-child td { border-bottom: none; }
+
+  /* Tips */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn {
+    background: rgba(240, 136, 62, 0.08);
+    border-left-color: var(--orange);
+  }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+
+  /* ステップタイムライン */
+  .steps {
+    position: relative;
+    margin: 28px 0;
+    padding-left: 8px;
+  }
+  .step {
+    position: relative;
+    padding: 0 0 28px 52px;
+    border-left: 2px dashed var(--border);
+    margin-left: 18px;
+  }
+  .step:last-child { border-left-color: transparent; padding-bottom: 0; }
+  .step-num {
+    position: absolute;
+    left: -19px;
+    top: -4px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #58a6ff, #bc8cff);
+    color: white;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 12px rgba(88, 166, 255, 0.35);
+  }
+  .step-body {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .step-body:hover { transform: translateX(4px); border-color: var(--accent); }
+  .step-title {
+    font-size: 1.05rem;
+    font-weight: bold;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .step-desc {
+    color: var(--muted);
+    font-size: 0.9rem;
+    margin-bottom: 10px;
+  }
+  .step-cmd {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.85rem;
+    color: var(--green);
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .step-state {
+    display: inline-block;
+    margin-top: 10px;
+    padding: 4px 10px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+
+  @media (max-width: 768px) {
+    .flow { grid-template-columns: 1fr; }
+    .flow-arrows { display: none; }
+    header h1 { font-size: 1.8rem; }
+    .step { padding-left: 42px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header>
+  <h1>Git コマンド図解ガイド</h1>
+  <p>add / commit / push と HEAD の関係性を視覚的に理解する</p>
+</header>
+
+<section>
+  <h2>4つのエリアとデータフロー</h2>
+  <p>Git では、ファイルが4つの場所を行き来します。各コマンドは「どこからどこへ移動させるか」を指定するものです。</p>
+
+  <div class="flow">
+    <div class="flow-node" data-type="workdir">
+      <div class="icon">📝</div>
+      <div class="name">Working Directory</div>
+      <div class="desc">作業ディレクトリ<br>編集中のファイル</div>
+    </div>
+    <div class="flow-node" data-type="stage">
+      <div class="icon">📋</div>
+      <div class="name">Staging Area</div>
+      <div class="desc">ステージング<br>(Index)</div>
+    </div>
+    <div class="flow-node" data-type="local">
+      <div class="icon">💾</div>
+      <div class="name">Local Repository</div>
+      <div class="desc">ローカルリポジトリ<br>(.git)</div>
+    </div>
+    <div class="flow-node" data-type="remote">
+      <div class="icon">☁️</div>
+      <div class="name">Remote Repository</div>
+      <div class="desc">リモート<br>(GitHub など)</div>
+    </div>
+  </div>
+
+  <div class="flow-arrows">
+    <div class="arrow">
+      <span class="cmd">git add</span>
+      <span class="dir">ステージに追加 →</span>
+    </div>
+    <div class="arrow">
+      <span class="cmd">git commit</span>
+      <span class="dir">ローカルに記録 →</span>
+    </div>
+    <div class="arrow">
+      <span class="cmd">git push</span>
+      <span class="dir">リモートへ送信 →</span>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>覚え方:</strong> 編集 → <code>add</code>(箱に入れる) → <code>commit</code>(金庫に保存) → <code>push</code>(クラウドへ送る)
+  </div>
+</section>
+
+<section>
+  <h2>HEAD とは何か？</h2>
+  <p>HEAD は「<strong>いま自分がいるコミット</strong>」を指すポインタです。通常はブランチの最新コミットを指します。</p>
+
+  <div class="head-diagram">
+    <div style="margin-bottom: 12px; color: var(--muted);">main ブランチ:</div>
+    <div class="commit-chain">
+      <div class="commit">
+        <div class="hash">a1b2c3</div>
+        <div class="msg">初期化</div>
+      </div>
+      <span class="arrow-line">←</span>
+      <div class="commit">
+        <div class="hash">d4e5f6</div>
+        <div class="msg">ログイン追加</div>
+      </div>
+      <span class="arrow-line">←</span>
+      <div class="commit">
+        <div class="hash">g7h8i9</div>
+        <div class="msg">バグ修正</div>
+      </div>
+      <span class="arrow-line">←</span>
+      <div class="commit head">
+        <div class="hash">j0k1l2</div>
+        <div class="msg">README更新</div>
+      </div>
+    </div>
+    <div style="margin-top: 16px; color: var(--muted); font-size: 0.9rem;">
+      → <code style="color:var(--red);">HEAD</code> が最新コミット <code style="color:var(--yellow);">j0k1l2</code> を指している状態
+    </div>
+  </div>
+
+  <h3>HEAD の表記法</h3>
+  <table>
+    <tr><th>表記</th><th>意味</th></tr>
+    <tr><td><code>HEAD</code></td><td>現在のコミット</td></tr>
+    <tr><td><code>HEAD~1</code> / <code>HEAD^</code></td><td>1つ前のコミット</td></tr>
+    <tr><td><code>HEAD~3</code></td><td>3つ前のコミット</td></tr>
+    <tr><td><code>HEAD@{1}</code></td><td>直前に HEAD が指していた場所(reflog)</td></tr>
+  </table>
+
+  <div class="tip warn">
+    <strong>Detached HEAD:</strong> <code>git checkout &lt;hash&gt;</code> で過去のコミットに直接移動すると、HEAD がブランチから外れた状態になります。この状態でコミットしても、ブランチに紐付かないので失われやすいので注意。
+  </div>
+</section>
+
+<section>
+  <h2>基本コマンド一覧</h2>
+  <div class="cmd-grid">
+
+    <div class="cmd-card">
+      <div class="cmd-title">git init</div>
+      <div class="cmd-desc">新しい Git リポジトリを作成します。<code>.git</code> フォルダが生成されます。</div>
+      <div class="cmd-example">$ git init</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git clone &lt;url&gt;</div>
+      <div class="cmd-desc">リモートリポジトリをローカルに複製します。</div>
+      <div class="cmd-example">$ git clone https://github.com/user/repo.git</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git status</div>
+      <div class="cmd-desc">変更ファイルとステージング状況を確認します。迷ったらまずコレ。</div>
+      <div class="cmd-example">$ git status</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git add &lt;file&gt;</div>
+      <div class="cmd-desc">ファイルの変更をステージング領域へ追加します。<code>.</code> で全ファイル対象。</div>
+      <div class="cmd-example">$ git add index.html<br>$ git add .</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git commit -m "msg"</div>
+      <div class="cmd-desc">ステージング中の変更をローカルリポジトリに記録し、HEAD が新しいコミットを指します。</div>
+      <div class="cmd-example">$ git commit -m "feat: ログイン機能を追加"</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git push</div>
+      <div class="cmd-desc">ローカルのコミットをリモートリポジトリへ送信します。</div>
+      <div class="cmd-example">$ git push origin main</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git pull</div>
+      <div class="cmd-desc">リモートの変更を取得し、ローカルにマージします。<code>fetch + merge</code> と等価。</div>
+      <div class="cmd-example">$ git pull origin main</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git fetch</div>
+      <div class="cmd-desc">リモートの変更を取得しますが、マージはしません。安全に確認したいときに。</div>
+      <div class="cmd-example">$ git fetch origin</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git branch</div>
+      <div class="cmd-desc">ブランチの一覧表示 / 作成 / 削除を行います。</div>
+      <div class="cmd-example">$ git branch<br>$ git branch feature/login<br>$ git branch -d old-branch</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git checkout / switch</div>
+      <div class="cmd-desc">ブランチを切り替えます。新しい Git では <code>switch</code> 推奨。</div>
+      <div class="cmd-example">$ git switch main<br>$ git switch -c feature/new</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git merge &lt;branch&gt;</div>
+      <div class="cmd-desc">指定ブランチの変更を現在のブランチに統合します。</div>
+      <div class="cmd-example">$ git merge feature/login</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git log</div>
+      <div class="cmd-desc">コミット履歴を確認します。<code>--oneline --graph</code> で見やすく。</div>
+      <div class="cmd-example">$ git log --oneline --graph --all</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git diff</div>
+      <div class="cmd-desc">変更の差分を表示します。ステージング前の差分を確認する際に使用。</div>
+      <div class="cmd-example">$ git diff<br>$ git diff --staged</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git reset</div>
+      <div class="cmd-desc">HEAD を指定コミットに戻します。<code>--soft</code>はコミットのみ取消、<code>--hard</code>は作業ディレクトリもリセット。</div>
+      <div class="cmd-example">$ git reset --soft HEAD~1<br>$ git reset --hard HEAD~1</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git revert &lt;hash&gt;</div>
+      <div class="cmd-desc">指定コミットを打ち消す新しいコミットを作ります。履歴を壊さない安全な取り消し。</div>
+      <div class="cmd-example">$ git revert a1b2c3</div>
+    </div>
+
+    <div class="cmd-card">
+      <div class="cmd-title">git stash</div>
+      <div class="cmd-desc">作業中の変更を一時的に退避します。ブランチを切り替えたいときに便利。</div>
+      <div class="cmd-example">$ git stash<br>$ git stash pop</div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <h2>HEAD が動くコマンドまとめ</h2>
+  <table>
+    <tr><th>コマンド</th><th>HEAD の動き</th><th>作業ディレクトリ</th></tr>
+    <tr><td><code>git commit</code></td><td>新しいコミットに進む</td><td>変化なし</td></tr>
+    <tr><td><code>git checkout &lt;branch&gt;</code></td><td>指定ブランチの先頭へ</td><td>そのブランチの内容に</td></tr>
+    <tr><td><code>git reset --soft HEAD~1</code></td><td>1つ戻す</td><td>変化なし (変更は staged のまま)</td></tr>
+    <tr><td><code>git reset --mixed HEAD~1</code></td><td>1つ戻す</td><td>変化なし (staged が解除)</td></tr>
+    <tr><td><code>git reset --hard HEAD~1</code></td><td>1つ戻す</td><td><strong style="color:var(--red)">強制的に書き換え</strong></td></tr>
+    <tr><td><code>git merge</code></td><td>マージコミットを作って進む</td><td>統合結果に</td></tr>
+    <tr><td><code>git rebase</code></td><td>付け替え後の位置へ</td><td>履歴が書き換わる</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>git init から git push までの流れ</h2>
+  <p>新規プロジェクトを GitHub に公開するまでの一連の流れを、ステップごとに確認します。各ステップで「ファイルがどのエリアに存在するか」を意識しましょう。</p>
+
+  <div class="steps">
+
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <div class="step-title">📁 プロジェクトフォルダを作成 / 移動</div>
+        <div class="step-desc">Git 管理したいディレクトリへ移動します。</div>
+        <div class="step-cmd">$ mkdir my-project
+$ cd my-project</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <div class="step-title">🎬 git init — リポジトリを初期化</div>
+        <div class="step-desc"><code>.git</code> フォルダが作成され、そのディレクトリが Git の管理下になります。この時点ではまだコミットは 1 つもありません。</div>
+        <div class="step-cmd">$ git init
+$ git branch -M main   <span style="color: var(--muted);"># デフォルトブランチ名を main に</span></div>
+        <div class="step-state">State: 空のローカルリポジトリが誕生</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <div class="step-title">📝 ファイルを作成・編集</div>
+        <div class="step-desc">README やソースコードなどを作業ディレクトリに用意します。この段階ではファイルは「Untracked(未追跡)」状態です。</div>
+        <div class="step-cmd">$ echo "# My Project" &gt; README.md
+$ git status          <span style="color: var(--muted);"># → Untracked files: README.md</span></div>
+        <div class="step-state">Area: Working Directory</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <div class="step-title">📋 git add — ステージング領域に追加</div>
+        <div class="step-desc">次のコミットに含めたい変更を選択します。<code>.</code> を指定するとカレント以下すべてを対象にできます。</div>
+        <div class="step-cmd">$ git add README.md
+<span style="color: var(--muted);"># または全ファイルをまとめて</span>
+$ git add .</div>
+        <div class="step-state">Area: Working Directory → Staging Area</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <div class="step-title">💾 git commit — ローカルリポジトリに記録</div>
+        <div class="step-desc">ステージング中の内容をスナップショットとして保存します。新しいコミットが作られ、<strong style="color: var(--red);">HEAD</strong> がそのコミットを指します。</div>
+        <div class="step-cmd">$ git commit -m "chore: 初回コミット"
+<span style="color: var(--muted);"># [main (root-commit) a1b2c3d] chore: 初回コミット</span></div>
+        <div class="step-state">Area: Staging → Local Repository / HEAD が進む</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <div class="step-title">🔗 git remote add — リモートを登録</div>
+        <div class="step-desc">GitHub などで作成した空のリポジトリ URL を <code>origin</code> という名前で紐付けます。これがプッシュ先になります。</div>
+        <div class="step-cmd">$ git remote add origin https://github.com/user/my-project.git
+$ git remote -v       <span style="color: var(--muted);"># 登録内容を確認</span></div>
+        <div class="step-state">Local ↔ Remote の接続を確立</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">7</div>
+      <div class="step-body">
+        <div class="step-title">🚀 git push — リモートへ送信</div>
+        <div class="step-desc">ローカルのコミットをリモートに反映します。初回は <code>-u</code> で上流ブランチを設定しておくと、次回以降は <code>git push</code> だけで OK です。</div>
+        <div class="step-cmd">$ git push -u origin main
+<span style="color: var(--muted);"># 次回以降は ↓ だけで push 可能</span>
+$ git push</div>
+        <div class="step-state">Area: Local Repository → Remote Repository</div>
+      </div>
+    </div>
+
+    <div class="step">
+      <div class="step-num">✓</div>
+      <div class="step-body">
+        <div class="step-title">🎉 完了 — GitHub に公開</div>
+        <div class="step-desc">ブラウザでリポジトリを開くと、コミットした内容が反映されています。以降は「編集 → add → commit → push」のサイクルを回すだけです。</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="tip">
+    <strong>エリアの移動イメージ:</strong>
+    Working Directory <code>─ add →</code> Staging <code>─ commit →</code> Local <code>─ push →</code> Remote
+  </div>
+  <div class="tip warn">
+    <strong>よくあるつまずき:</strong> <code>git push</code> で <code>rejected</code> と出るときは、リモート側に先に存在するコミット(README など)との差分が原因です。<code>git pull --rebase origin main</code> で取り込んでから再 push しましょう。
+  </div>
+</section>
+
+<section>
+  <h2>日常の開発フロー (2 回目以降)</h2>
+  <div class="head-diagram">
+<pre style="color: var(--text); font-size: 0.9rem; line-height: 1.8;">
+<span style="color: var(--muted);"># 1. 最新を取得</span>
+<span style="color: var(--green);">$ git pull origin main</span>
+
+<span style="color: var(--muted);"># 2. 作業ブランチを作成</span>
+<span style="color: var(--green);">$ git switch -c feature/login</span>
+
+<span style="color: var(--muted);"># 3. ファイルを編集 → 状況を確認</span>
+<span style="color: var(--green);">$ git status</span>
+
+<span style="color: var(--muted);"># 4. ステージング</span>
+<span style="color: var(--green);">$ git add .</span>
+
+<span style="color: var(--muted);"># 5. コミット (HEAD が新コミットへ移動)</span>
+<span style="color: var(--green);">$ git commit -m "feat: ログイン画面を追加"</span>
+
+<span style="color: var(--muted);"># 6. リモートへプッシュ</span>
+<span style="color: var(--green);">$ git push origin feature/login</span>
+
+<span style="color: var(--muted);"># 7. GitHub で Pull Request を作成してマージ</span>
+</pre>
+  </div>
+</section>
+
+<footer style="text-align:center; color:var(--muted); padding:24px 0; border-top:1px solid var(--border); margin-top:40px;">
+  <p>Git Commands Reference · 2026</p>
+</footer>
+
+</div>
+</body>
+</html>
