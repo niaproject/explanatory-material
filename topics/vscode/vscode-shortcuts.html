@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSCode キーボードショートカット集 | VSCode 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --vs-blue: #007acc;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 2.3rem;
+    background: linear-gradient(90deg, #58a6ff, #bc8cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  p { margin-bottom: 12px; }
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  /* キーボードキー風 */
+  .kbd {
+    display: inline-block;
+    padding: 4px 10px;
+    min-width: 28px;
+    text-align: center;
+    background: linear-gradient(180deg, #2d333b 0%, #22272e 100%);
+    border: 1px solid #444c56;
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.85rem;
+    color: var(--text);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .kbd.mod { color: var(--accent); }
+  .plus { color: var(--muted); margin: 0 4px; font-size: 0.85rem; }
+  .comma {
+    color: var(--yellow);
+    margin: 0 10px;
+    font-weight: bold;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+
+  /* チョード解説ボックス */
+  .chord-demo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 20px 0 28px;
+  }
+  .chord-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    text-align: center;
+  }
+  .chord-card .label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+  .chord-card .title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 18px;
+  }
+  .chord-card.simultaneous { border-top: 3px solid var(--green); }
+  .chord-card.simultaneous .title { color: var(--green); }
+  .chord-card.chord { border-top: 3px solid var(--yellow); }
+  .chord-card.chord .title { color: var(--yellow); }
+  .chord-keys {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 14px;
+    min-height: 36px;
+  }
+  .chord-desc { color: var(--muted); font-size: 0.9rem; }
+
+  /* ショートカットテーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0 0;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: middle;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.keys { white-space: nowrap; width: 1%; }
+  td.desc { color: var(--text); }
+  td.note { color: var(--muted); font-size: 0.85rem; }
+
+  /* カテゴリヘッダ */
+  .cat-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 36px;
+    margin-bottom: 4px;
+  }
+  .cat-head .cat-icon {
+    font-size: 1.6rem;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+  }
+  .cat-head h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    color: var(--text);
+  }
+  .cat-head .cat-sub {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-top: 2px;
+  }
+
+  /* Tips */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn {
+    background: rgba(240, 136, 62, 0.08);
+    border-left-color: var(--orange);
+  }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+
+  /* ステップ */
+  .steps { counter-reset: step-counter; }
+  .step-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px 18px 68px;
+    margin-bottom: 14px;
+    position: relative;
+    counter-increment: step-counter;
+  }
+  .step-item::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 20px;
+    top: 18px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #58a6ff, #bc8cff);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+  .step-item h4 { font-size: 1.05rem; margin-bottom: 8px; }
+
+  /* OS 注記 */
+  .os-note {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin: 16px 0 28px;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .os-note strong { color: var(--accent); }
+
+  /* 覚えたいショートカットのマーク（★） */
+  .check-col {
+    width: 1%;
+    text-align: center;
+    white-space: nowrap;
+  }
+  .mark-star {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    font-size: 22px;
+    line-height: 1;
+    vertical-align: middle;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .mark-star::before {
+    content: "☆";
+    color: var(--muted);
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+  .mark-star:hover::before {
+    color: var(--yellow);
+    transform: scale(1.15);
+  }
+  .mark-star:checked::before {
+    content: "★";
+    color: var(--yellow);
+    text-shadow: 0 0 10px rgba(210, 153, 34, 0.45);
+  }
+  .mark-star:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  tbody tr.marked {
+    background: linear-gradient(90deg, rgba(210, 153, 34, 0.14), rgba(210, 153, 34, 0.03));
+    box-shadow: inset 3px 0 0 var(--yellow);
+  }
+  tbody tr.marked td.desc {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  /* 進捗ウィジェット */
+  .progress-widget {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin: 0 0 28px;
+  }
+  .progress-info {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+  .progress-text {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .progress-label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+  .progress-count { font-size: 1rem; color: var(--muted); }
+  .progress-count strong {
+    color: var(--yellow);
+    font-size: 1.4rem;
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .progress-percent { color: var(--muted); font-size: 0.9rem; margin-left: 6px; }
+  .reset-btn {
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 14px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    font-family: inherit;
+    transition: color 0.15s, border-color 0.15s;
+  }
+  .reset-btn:hover { color: var(--red); border-color: var(--red); }
+  .progress-bar {
+    height: 8px;
+    background: var(--panel-2);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--yellow), var(--orange));
+    width: 0%;
+    transition: width 0.3s ease;
+    border-radius: 999px;
+  }
+
+  @media (max-width: 768px) {
+    .chord-demo { grid-template-columns: 1fr; }
+    header h1 { font-size: 1.6rem; }
+    th, td { padding: 10px 12px; font-size: 0.85rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / VSCode / キーボードショートカット集
+</div>
+
+<header>
+  <h1>VSCode キーボードショートカット集</h1>
+  <p>マウスから手を離さないための、カテゴリ別チートシート</p>
+</header>
+
+<section>
+  <h2>はじめに</h2>
+  <p>
+    VSCode は<strong>キーボードだけでほぼ全ての操作</strong>が完結するエディタです。
+    ショートカットを覚えるほどコンテキストスイッチが減り、コードを書くことそのものに集中できます。
+  </p>
+  <p>
+    このページは、実務で頻度の高いショートカットをカテゴリ別にまとめたチートシートです。
+    全部覚える必要はなく、「今日から 3 つだけ使ってみる」くらいの距離感が良いです。
+  </p>
+  <div class="os-note">
+    <strong>OS について:</strong> 本ページは <code>Ctrl</code> ベース（Windows / Linux）で記載しています。macOS では原則 <code>Ctrl</code> → <code>Cmd</code>、<code>Alt</code> → <code>Option</code> に読み替えてください。
+  </div>
+</section>
+
+<section>
+  <h2>まず押さえる：記法の読み方</h2>
+  <p>
+    VSCode のショートカットには <strong>2 種類の押し方</strong>があります。この違いを知らないと、ドキュメントを読んでも再現できません。
+  </p>
+
+  <div class="chord-demo">
+    <div class="chord-card simultaneous">
+      <div class="label">同時押し</div>
+      <div class="title">Ctrl+Shift+V</div>
+      <div class="chord-keys">
+        <span class="kbd mod">Ctrl</span>
+        <span class="plus">+</span>
+        <span class="kbd mod">Shift</span>
+        <span class="plus">+</span>
+        <span class="kbd">V</span>
+      </div>
+      <div class="chord-desc">3 つのキーを<strong>同時</strong>に押す。<code>+</code> で繋がっている。</div>
+    </div>
+
+    <div class="chord-card chord">
+      <div class="label">チョード（順次押し）</div>
+      <div class="title">Ctrl+K, Ctrl+O</div>
+      <div class="chord-keys">
+        <span class="kbd mod">Ctrl</span>
+        <span class="plus">+</span>
+        <span class="kbd">K</span>
+        <span class="comma">,</span>
+        <span class="kbd mod">Ctrl</span>
+        <span class="plus">+</span>
+        <span class="kbd">O</span>
+      </div>
+      <div class="chord-desc">前半を押して<strong>一度離し</strong>、続けて後半を押す。<code>,</code> で区切られている。</div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>補足:</strong> チョード（和音）はピアノの和音が由来。<code>Ctrl+K</code> を「プレフィックス」として大量のショートカットを 2 段階で割り当てられる仕組みです。
+  </div>
+</section>
+
+<section>
+  <h2>カテゴリ別ショートカット一覧</h2>
+
+  <div id="progress-widget" class="progress-widget" aria-live="polite"></div>
+
+  <!-- ファイル・フォルダ -->
+  <div class="cat-head">
+    <div class="cat-icon">📁</div>
+    <div>
+      <h3>ファイル・フォルダ操作</h3>
+      <div class="cat-sub">プロジェクトを開き、エディタを行き来する</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>ショートカット</th><th>動作</th><th>メモ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">O</span></td>
+        <td class="desc">ファイルを開く</td>
+        <td class="note">単一ファイルのみ</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">K</span><span class="comma">,</span><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">O</span></td>
+        <td class="desc">フォルダを開く</td>
+        <td class="note">プロジェクトルートの切替に</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">N</span></td>
+        <td class="desc">新規ファイル</td>
+        <td class="note"></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">S</span></td>
+        <td class="desc">保存</td>
+        <td class="note"></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">S</span></td>
+        <td class="desc">名前を付けて保存</td>
+        <td class="note"></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">K</span><span class="comma">,</span><span class="kbd">S</span></td>
+        <td class="desc">すべて保存</td>
+        <td class="note">複数ファイル編集時に便利</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">W</span></td>
+        <td class="desc">現在のエディタを閉じる</td>
+        <td class="note"></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">T</span></td>
+        <td class="desc">閉じたエディタを再度開く</td>
+        <td class="note">「しまった」のときに</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">Tab</span></td>
+        <td class="desc">開いているエディタを循環</td>
+        <td class="note">押し続けて選択</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 表示・プレビュー -->
+  <div class="cat-head">
+    <div class="cat-icon">👁️</div>
+    <div>
+      <h3>表示・プレビュー</h3>
+      <div class="cat-sub">サイドバー、パネル、Markdown プレビューの切替</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>ショートカット</th><th>動作</th><th>メモ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">V</span></td>
+        <td class="desc">Markdown プレビュー（フル）</td>
+        <td class="note">.md ファイルを開いた状態で</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">K</span><span class="comma">,</span><span class="kbd">V</span></td>
+        <td class="desc">Markdown サイドプレビュー</td>
+        <td class="note">編集と並べて表示</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">B</span></td>
+        <td class="desc">サイドバー表示切替</td>
+        <td class="note">エクスプローラの開閉</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">J</span></td>
+        <td class="desc">下部パネル表示切替</td>
+        <td class="note">ターミナル / 問題など</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">K</span><span class="comma">,</span><span class="kbd">Z</span></td>
+        <td class="desc">Zen モード</td>
+        <td class="note">集中したいときに。<code>Esc Esc</code> で解除</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd">F11</span></td>
+        <td class="desc">フルスクリーン切替</td>
+        <td class="note"></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">=</span> <span class="plus">/</span> <span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">-</span></td>
+        <td class="desc">エディタの拡大 / 縮小</td>
+        <td class="note">画面共有やペアプロで重宝</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 編集 -->
+  <div class="cat-head">
+    <div class="cat-icon">✏️</div>
+    <div>
+      <h3>編集操作</h3>
+      <div class="cat-sub">一度覚えると戻れなくなる生産性ショートカット群</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>ショートカット</th><th>動作</th><th>メモ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="keys"><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">↑</span> <span class="plus">/</span> <span class="kbd">↓</span></td>
+        <td class="desc">行を上下に移動</td>
+        <td class="note">コピペ不要</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">↑</span> <span class="plus">/</span> <span class="kbd">↓</span></td>
+        <td class="desc">行を上下に複製</td>
+        <td class="note"></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span></td>
+        <td class="desc">次の同一文字列を選択（複数カーソル）</td>
+        <td class="note">連打で範囲を広げる ／ <a href="vscode-multi-cursor.html" style="color: var(--accent);">詳しく →</a></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">L</span></td>
+        <td class="desc">同一文字列をすべて選択</td>
+        <td class="note">一括リネームに</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">クリック</span></td>
+        <td class="desc">任意位置にカーソル追加</td>
+        <td class="note">複数カーソルを手動配置</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">/</span></td>
+        <td class="desc">行コメントの切替</td>
+        <td class="note">言語ごとに適切なコメント記号</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">A</span></td>
+        <td class="desc">ブロックコメント切替</td>
+        <td class="note"><code>/* */</code> 形式</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">]</span> <span class="plus">/</span> <span class="kbd">[</span></td>
+        <td class="desc">インデント / アウトデント</td>
+        <td class="note"></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">X</span></td>
+        <td class="desc">選択なしで 1 行をカット</td>
+        <td class="note">行削除の代用にもなる</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">F</span></td>
+        <td class="desc">ドキュメント全体をフォーマット</td>
+        <td class="note">Prettier などの連携が必要</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- 検索・移動 -->
+  <div class="cat-head">
+    <div class="cat-icon">🔍</div>
+    <div>
+      <h3>検索・置換・移動</h3>
+      <div class="cat-sub">コードベース内を素早くジャンプする</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>ショートカット</th><th>動作</th><th>メモ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">F</span></td>
+        <td class="desc">ファイル内検索</td>
+        <td class="note"></td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">H</span></td>
+        <td class="desc">ファイル内置換</td>
+        <td class="note">正規表現トグルあり</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">F</span></td>
+        <td class="desc">プロジェクト全体検索</td>
+        <td class="note">サイドバーに結果</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">P</span></td>
+        <td class="desc">クイックオープン（ファイル名で検索）</td>
+        <td class="note">最もよく使う</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">P</span></td>
+        <td class="desc">コマンドパレット</td>
+        <td class="note">機能がわからない時はまずこれ</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">G</span></td>
+        <td class="desc">指定行へジャンプ</td>
+        <td class="note">行番号を入力</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">T</span></td>
+        <td class="desc">シンボル検索（関数・クラス）</td>
+        <td class="note">プロジェクト全体から</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd">F12</span></td>
+        <td class="desc">定義へ移動</td>
+        <td class="note">関数名の上で</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">←</span></td>
+        <td class="desc">直前のカーソル位置に戻る</td>
+        <td class="note">定義ジャンプの後に便利</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- ターミナル -->
+  <div class="cat-head">
+    <div class="cat-icon">⌨️</div>
+    <div>
+      <h3>ターミナル</h3>
+      <div class="cat-sub">エディタを離れずにコマンド実行</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>ショートカット</th><th>動作</th><th>メモ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">`</span></td>
+        <td class="desc">統合ターミナル表示切替</td>
+        <td class="note">バッククォート</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">`</span></td>
+        <td class="desc">新しいターミナルを追加</td>
+        <td class="note">複数タブ運用</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <!-- カスタマイズ -->
+  <div class="cat-head">
+    <div class="cat-icon">⚙️</div>
+    <div>
+      <h3>設定・カスタマイズ</h3>
+      <div class="cat-sub">自分好みの環境にチューニング</div>
+    </div>
+  </div>
+  <table>
+    <thead>
+      <tr><th>ショートカット</th><th>動作</th><th>メモ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">,</span></td>
+        <td class="desc">設定（Settings）を開く</td>
+        <td class="note">GUI / JSON 両対応</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">K</span><span class="comma">,</span><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">S</span></td>
+        <td class="desc">キーボードショートカット設定を開く</td>
+        <td class="note">競合確認・変更・検索に</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>覚えきれないショートカットを「調べる・変える」</h2>
+  <p>
+    暗記する必要はありません。VSCode には <strong>自分のキーバインドを一覧・変更できる画面</strong> が組み込まれています。
+  </p>
+
+  <div class="steps">
+    <div class="step-item">
+      <h4>ショートカット設定を開く</h4>
+      <p>
+        <span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">K</span><span class="comma">,</span><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">S</span>
+        を押すと「キーボード ショートカット」タブが開きます。
+      </p>
+    </div>
+    <div class="step-item">
+      <h4>検索ボックスで機能名 or キーを入力</h4>
+      <p>
+        例：<code>markdown preview</code> と入力すると関連するコマンドとキーバインドが一覧表示されます。
+        逆に <code>ctrl+shift+v</code> のようにキーの組み合わせで検索することも可能。
+      </p>
+    </div>
+    <div class="step-item">
+      <h4>キーバインドを編集</h4>
+      <p>
+        行頭の鉛筆アイコンをクリック → 新しいキーを押す → Enter で確定。
+        競合がある場合は警告が出ます。
+      </p>
+    </div>
+    <div class="step-item">
+      <h4>JSON で一括管理したい場合</h4>
+      <p>
+        画面右上の「keybindings.json を開く」アイコンから直接編集できます。
+        ドットファイル管理したい人向け。
+      </p>
+    </div>
+  </div>
+
+  <div class="tip warn">
+    <strong>注意:</strong> 拡張機能が独自のショートカットを追加することがあり、既定のキーと競合する場合があります。挙動が思った通りでない時は、まず競合チェックから始めましょう。
+  </div>
+</section>
+
+<section>
+  <h2>まず 3 つだけ覚えるなら</h2>
+  <p>いきなり全部は無理なので、費用対効果の高い 3 つを挙げておきます。</p>
+  <table>
+    <thead>
+      <tr><th>優先</th><th>ショートカット</th><th>理由</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong style="color: var(--green)">★1</strong></td>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">P</span></td>
+        <td class="desc">ファイル名で一瞬でジャンプ。サイドバーを操作する時間が消える。</td>
+      </tr>
+      <tr>
+        <td><strong style="color: var(--green)">★2</strong></td>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">P</span></td>
+        <td class="desc">機能名で検索できるので、ショートカットを覚えていなくても何でもできる。</td>
+      </tr>
+      <tr>
+        <td><strong style="color: var(--green)">★3</strong></td>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span></td>
+        <td class="desc">複数カーソルの入口。一度触ると置換より手軽で戻れなくなる。</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<footer style="text-align: center; color: var(--muted); font-size: 0.85rem; padding-top: 24px; border-top: 1px solid var(--border); margin-top: 40px;">
+  <p>VSCode キーボードショートカット集</p>
+  <p style="margin-top: 8px;"><a href="../../index.html" style="color: var(--accent); text-decoration: none;">← 目次に戻る</a></p>
+</footer>
+
+</div>
+
+<script>
+(function () {
+  const STORAGE_KEY = 'vscode-shortcut-marked';
+  let state = {};
+  try {
+    state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}') || {};
+  } catch (e) {
+    state = {};
+  }
+
+  // .cat-head の直後に並ぶテーブルだけを対象にする（末尾の「★優先」テーブルは対象外）
+  const tables = [];
+  document.querySelectorAll('.cat-head').forEach((head) => {
+    let el = head.nextElementSibling;
+    while (el && el.tagName !== 'TABLE') el = el.nextElementSibling;
+    if (el) tables.push(el);
+  });
+
+  const items = [];
+
+  tables.forEach((table, tIdx) => {
+    const headerRow = table.querySelector('thead tr');
+    if (headerRow) {
+      const th = document.createElement('th');
+      th.innerHTML = '<span aria-label="覚えたい">⭐</span>';
+      th.className = 'check-col';
+      headerRow.insertBefore(th, headerRow.firstChild);
+    }
+
+    table.querySelectorAll('tbody tr').forEach((row, rIdx) => {
+      const id = 't' + tIdx + '-r' + rIdx;
+      const td = document.createElement('td');
+      td.className = 'check-col';
+
+      const label = document.createElement('label');
+      label.style.display = 'inline-flex';
+      label.style.alignItems = 'center';
+      label.style.cursor = 'pointer';
+      label.setAttribute('title', '覚えたいものにマーク');
+      label.setAttribute('aria-label', '覚えたいものにマーク');
+
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.className = 'mark-star';
+      cb.dataset.id = id;
+      cb.checked = !!state[id];
+      if (cb.checked) row.classList.add('marked');
+
+      cb.addEventListener('change', () => {
+        if (cb.checked) {
+          state[id] = true;
+          row.classList.add('marked');
+        } else {
+          delete state[id];
+          row.classList.remove('marked');
+        }
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (e) { /* quota 等は黙って無視 */ }
+        updateProgress();
+      });
+
+      label.appendChild(cb);
+      td.appendChild(label);
+      row.insertBefore(td, row.firstChild);
+      items.push({ cb, row });
+    });
+  });
+
+  const total = items.length;
+  const widget = document.getElementById('progress-widget');
+  if (widget) {
+    widget.innerHTML =
+      '<div class="progress-info">' +
+        '<div class="progress-text">' +
+          '<span class="progress-label">⭐ 覚えたい</span>' +
+          '<span class="progress-count">' +
+            '<strong id="marked-count">0</strong> / ' + total +
+            '<span class="progress-percent" id="progress-percent">(0%)</span>' +
+          '</span>' +
+        '</div>' +
+        '<button id="reset-progress" class="reset-btn" type="button">すべて外す</button>' +
+      '</div>' +
+      '<div class="progress-bar"><div class="progress-fill" id="progress-fill"></div></div>';
+
+    document.getElementById('reset-progress').addEventListener('click', () => {
+      if (!confirm('マークをすべて外しますか？')) return;
+      state = {};
+      try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+      items.forEach(({ cb, row }) => {
+        cb.checked = false;
+        row.classList.remove('marked');
+      });
+      updateProgress();
+    });
+  }
+
+  function updateProgress() {
+    const count = items.filter(({ cb }) => cb.checked).length;
+    const pct = total ? Math.round((count / total) * 100) : 0;
+    const cEl = document.getElementById('marked-count');
+    const pEl = document.getElementById('progress-percent');
+    const fEl = document.getElementById('progress-fill');
+    if (cEl) cEl.textContent = count;
+    if (pEl) pEl.textContent = '(' + pct + '%)';
+    if (fEl) fEl.style.width = pct + '%';
+  }
+
+  updateProgress();
+})();
+</script>
+</body>
+</html>

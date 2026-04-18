@@ -19,6 +19,7 @@
 
       --cat-git: #f97316;
       --cat-hosting: #a855f7;
+      --cat-vscode: #007acc;
     }
 
     * {
@@ -193,6 +194,7 @@
     }
     .cat-chip.git { background: rgba(249, 115, 22, 0.15); color: var(--cat-git); border: 1px solid rgba(249, 115, 22, 0.3); }
     .cat-chip.hosting { background: rgba(168, 85, 247, 0.15); color: var(--cat-hosting); border: 1px solid rgba(168, 85, 247, 0.3); }
+    .cat-chip.vscode { background: rgba(0, 122, 204, 0.15); color: var(--cat-vscode); border: 1px solid rgba(0, 122, 204, 0.3); }
     .update-title {
       font-weight: 500;
       font-size: 0.98rem;
@@ -233,6 +235,7 @@
     }
     .cat-card[data-cat="git"]:hover { border-color: var(--cat-git); }
     .cat-card[data-cat="hosting"]:hover { border-color: var(--cat-hosting); }
+    .cat-card[data-cat="vscode"]:hover { border-color: var(--cat-vscode); }
     .cat-card .cat-icon { font-size: 2.4rem; margin-bottom: 0.75rem; }
     .cat-card .cat-name {
       font-size: 1.2rem;
@@ -398,29 +401,49 @@
         icon: "🌐",
         desc: "各種ホスティングサービスの比較と選定",
       },
+      vscode: {
+        name: "VSCode",
+        icon: "💻",
+        desc: "VSCode の使い方・ショートカット・Tips",
+      },
     };
 
+    // updated は YYYY-MM-DD HH:mm:ss (ローカル時刻) でソート精度を秒まで確保
     const PAGES = [
       {
         title: "git add の取り消し方",
         desc: "ステージングしたファイルを特定だけ安全に取り消す手順を図解。",
-        url: "git/git-unstage.html",
+        url: "topics/git/git-unstage.html",
         category: "git",
-        updated: "2026-04-18",
+        updated: "2026-04-18 20:45:49",
       },
       {
         title: "Git コマンド解説",
         desc: "add / commit / push と HEAD の関係性を図解。init から push までの流れ付き。",
-        url: "git/git-commands.html",
+        url: "topics/git/git-commands.html",
         category: "git",
-        updated: "2026-04-18",
+        updated: "2026-04-18 17:16:11",
       },
       {
         title: "ホスティングサービス比較",
         desc: "主要ホスティングサービスの特徴や使い分けをまとめて比較。",
-        url: "hosting/hosting-comparison.html",
+        url: "topics/hosting/hosting-comparison.html",
         category: "hosting",
-        updated: "2026-04-17",
+        updated: "2026-04-09 21:44:13",
+      },
+      {
+        title: "VSCode キーボードショートカット集",
+        desc: "同時押し/チョードの記法から、カテゴリ別の実用ショートカット 30 超までをまとめたチートシート。",
+        url: "topics/vscode/vscode-shortcuts.html",
+        category: "vscode",
+        updated: "2026-04-18 21:17:24",
+      },
+      {
+        title: "Ctrl+D 系ショートカット徹底解説",
+        desc: "Ctrl+D を軸にした複数カーソル操作を 4 ステップで図解。Ctrl+Shift+L / Ctrl+U / Ctrl+K, Ctrl+D との使い分けも。",
+        url: "topics/vscode/vscode-multi-cursor.html",
+        category: "vscode",
+        updated: "2026-04-18 21:17:16",
       },
     ];
 
@@ -438,9 +461,16 @@
     });
 
     // ===== 更新順リスト描画 =====
+    // "YYYY-MM-DD HH:mm:ss" を Date に変換（ローカル時刻として解釈）
+    function parseUpdated(s) {
+      const m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(s || "");
+      if (!m) return 0;
+      return new Date(+m[1], +m[2] - 1, +m[3], +(m[4] || 0), +(m[5] || 0), +(m[6] || 0)).getTime();
+    }
     function renderUpdates() {
       const list = document.getElementById("updates-list");
-      const sorted = [...PAGES].sort((a, b) => b.updated.localeCompare(a.updated));
+      // 新しい（時刻の大きい）ものほど上に表示
+      const sorted = [...PAGES].sort((a, b) => parseUpdated(b.updated) - parseUpdated(a.updated));
       list.innerHTML = sorted
         .map(
           (p) => `

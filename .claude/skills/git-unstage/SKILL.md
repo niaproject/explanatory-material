@@ -57,6 +57,6 @@ Git 2.23 以降を前提に `git restore --staged` を第一推奨とする。
 
 ## 参照資料
 
-プロジェクト内の解説ページ: [git/git-unstage.html](../../../git/git-unstage.html)
+プロジェクト内の解説ページ: [topics/git/git-unstage.html](../../../topics/git/git-unstage.html)
 
 このページには、ステージング状態の可視化図、コマンド比較早見表、FAQ（初回コミット前の挙動、ワイルドカード指定など）が含まれる。ユーザーがより詳しい図解を求める場合は、このページを案内する。

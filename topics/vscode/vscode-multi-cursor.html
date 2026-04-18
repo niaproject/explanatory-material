@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ctrl+D 系ショートカット徹底解説 | VSCode 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+  }
+  header h1 {
+    font-size: 2.3rem;
+    background: linear-gradient(90deg, #58a6ff, #bc8cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  p { margin-bottom: 12px; }
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  /* kbd */
+  .kbd {
+    display: inline-block;
+    padding: 3px 9px;
+    min-width: 26px;
+    text-align: center;
+    background: linear-gradient(180deg, #2d333b 0%, #22272e 100%);
+    border: 1px solid #444c56;
+    border-bottom-width: 3px;
+    border-radius: 6px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.82rem;
+    color: var(--text);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.4);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+  .kbd.mod { color: var(--accent); }
+  .plus { color: var(--muted); margin: 0 3px; font-size: 0.82rem; }
+  .comma { color: var(--yellow); margin: 0 8px; font-weight: bold; font-family: "SF Mono", Consolas, monospace; }
+
+  /* 段階デモ */
+  .stages {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .stage {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    position: relative;
+  }
+  .stage-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .stage-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #58a6ff, #bc8cff);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+    flex-shrink: 0;
+  }
+  .stage-title { font-weight: bold; font-size: 1rem; }
+  .stage-action {
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-left: auto;
+  }
+  .stage-action .kbd { font-size: 0.75rem; padding: 2px 7px; }
+
+  /* コードデモ */
+  .code-block {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 18px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9rem;
+    line-height: 1.85;
+    overflow-x: auto;
+  }
+  .code-block .kw { color: var(--purple); }
+  .code-block .str { color: var(--green); }
+  .code-block .com { color: var(--muted); font-style: italic; }
+  .code-block .fn { color: var(--accent); }
+
+  /* ハイライトマーカー */
+  .mark-cursor {
+    display: inline-block;
+    background: rgba(88, 166, 255, 0.18);
+    border-bottom: 2px solid var(--accent);
+    padding: 0 2px;
+    position: relative;
+    animation: caretBlink 1s infinite;
+  }
+  @keyframes caretBlink {
+    0%, 100% { border-bottom-color: var(--accent); }
+    50% { border-bottom-color: transparent; }
+  }
+  .mark-sel {
+    display: inline-block;
+    background: rgba(240, 136, 62, 0.25);
+    border: 1px solid var(--orange);
+    border-radius: 3px;
+    padding: 0 2px;
+    font-weight: 600;
+  }
+  .mark-new {
+    display: inline-block;
+    background: rgba(63, 185, 80, 0.2);
+    border: 1px solid var(--green);
+    border-radius: 3px;
+    padding: 0 2px;
+    font-weight: 600;
+    color: var(--green);
+  }
+
+  .legend {
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin: 16px 0 4px;
+    padding: 12px 16px;
+    background: var(--panel-2);
+    border-radius: 8px;
+  }
+  .legend span::before {
+    content: "●";
+    margin-right: 6px;
+    font-size: 1rem;
+  }
+  .legend .lg-cursor::before { color: var(--accent); }
+  .legend .lg-sel::before { color: var(--orange); }
+  .legend .lg-new::before { color: var(--green); }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 20px 0;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: middle;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.keys { white-space: nowrap; width: 1%; }
+
+  /* Tip */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn {
+    background: rgba(240, 136, 62, 0.08);
+    border-left-color: var(--orange);
+  }
+  .tip.danger {
+    background: rgba(248, 81, 73, 0.08);
+    border-left-color: var(--red);
+  }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+  .tip.danger strong { color: var(--red); }
+
+  /* 比較カード */
+  .compare-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 14px;
+    margin: 20px 0;
+  }
+  .compare-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .compare-card.d { border-top: 3px solid var(--accent); }
+  .compare-card.l { border-top: 3px solid var(--purple); }
+  .compare-card.h { border-top: 3px solid var(--orange); }
+  .compare-card .compare-kbd { margin-bottom: 12px; }
+  .compare-card h4 { font-size: 1rem; margin-bottom: 8px; }
+  .compare-card.d h4 { color: var(--accent); }
+  .compare-card.l h4 { color: var(--purple); }
+  .compare-card.h h4 { color: var(--orange); }
+  .compare-card p { font-size: 0.88rem; color: var(--muted); margin: 0; }
+  .compare-card .scope { margin-top: 10px; font-size: 0.8rem; }
+  .compare-card .scope strong { color: var(--text); }
+
+  @media (max-width: 768px) {
+    header h1 { font-size: 1.6rem; }
+    .compare-grid { grid-template-columns: 1fr; }
+    th, td { padding: 10px 12px; font-size: 0.85rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / VSCode / Ctrl+D 系ショートカット徹底解説
+</div>
+
+<header>
+  <h1>Ctrl+D 系ショートカット徹底解説</h1>
+  <p>複数カーソル（Multi-cursor）を自在に扱うための完全ガイド</p>
+</header>
+
+<section>
+  <h2>Ctrl+D とは何か</h2>
+  <p>
+    VSCode の <span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span> は、
+    <strong>カーソル位置の単語と同じ文字列を、1 つずつ順番に複数カーソルで追加選択する</strong> ショートカットです。
+  </p>
+  <p>
+    一度に選択するのではなく、<strong>押すたびに次の一致を増やしていく</strong>のが特徴。これにより「この 3 箇所だけ」「ここは除外して次」のような細かい制御ができます。
+  </p>
+  <div class="tip">
+    <strong>複数カーソルとは:</strong> 同時に複数位置でタイピング・削除・選択ができる編集モード。<code>Ctrl+D</code> はその最もよく使う入り口です。
+  </div>
+</section>
+
+<section>
+  <h2>基本動作を 4 ステップで見る</h2>
+  <p>変数 <code>user</code> を <code>currentUser</code> にリネームする流れを追ってみます。</p>
+
+  <div class="legend">
+    <span class="lg-cursor">カーソル位置</span>
+    <span class="lg-sel">選択中の文字列</span>
+    <span class="lg-new">入力で書き換わった箇所</span>
+  </div>
+
+  <div class="stages">
+    <div class="stage">
+      <div class="stage-head">
+        <div class="stage-num">0</div>
+        <div class="stage-title">開始状態：カーソルが <code>user</code> の中にある</div>
+        <div class="stage-action">まだ何も押していない</div>
+      </div>
+      <div class="code-block">
+<span class="kw">const</span> <span class="mark-cursor">user</span> = getUser();<br>
+<span class="fn">console</span>.log(user);<br>
+<span class="kw">return</span> user.name;
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="stage-head">
+        <div class="stage-num">1</div>
+        <div class="stage-title">1 回目：単語が選択される</div>
+        <div class="stage-action"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span></div>
+      </div>
+      <div class="code-block">
+<span class="kw">const</span> <span class="mark-sel">user</span> = getUser();<br>
+<span class="fn">console</span>.log(user);<br>
+<span class="kw">return</span> user.name;
+      </div>
+      <p style="color: var(--muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 0;">
+        最初の 1 回は単語選択のみ。カーソル数は変わらず 1 つ。
+      </p>
+    </div>
+
+    <div class="stage">
+      <div class="stage-head">
+        <div class="stage-num">2</div>
+        <div class="stage-title">2 回目：次の一致にカーソル追加</div>
+        <div class="stage-action"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span> を再度</div>
+      </div>
+      <div class="code-block">
+<span class="kw">const</span> <span class="mark-sel">user</span> = getUser();<br>
+<span class="fn">console</span>.log(<span class="mark-sel">user</span>);<br>
+<span class="kw">return</span> user.name;
+      </div>
+      <p style="color: var(--muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 0;">
+        2 箇所が同時選択された状態。カーソルが 2 つになる。
+      </p>
+    </div>
+
+    <div class="stage">
+      <div class="stage-head">
+        <div class="stage-num">3</div>
+        <div class="stage-title">3 回目：3 箇所目を追加</div>
+        <div class="stage-action"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span> ×3</div>
+      </div>
+      <div class="code-block">
+<span class="kw">const</span> <span class="mark-sel">user</span> = getUser();<br>
+<span class="fn">console</span>.log(<span class="mark-sel">user</span>);<br>
+<span class="kw">return</span> <span class="mark-sel">user</span>.name;
+      </div>
+    </div>
+
+    <div class="stage">
+      <div class="stage-head">
+        <div class="stage-num">4</div>
+        <div class="stage-title">タイピングで同時書き換え</div>
+        <div class="stage-action"><code>currentUser</code> と入力</div>
+      </div>
+      <div class="code-block">
+<span class="kw">const</span> <span class="mark-new">currentUser</span> = getUser();<br>
+<span class="fn">console</span>.log(<span class="mark-new">currentUser</span>);<br>
+<span class="kw">return</span> <span class="mark-new">currentUser</span>.name;
+      </div>
+      <p style="color: var(--muted); font-size: 0.9rem; margin-top: 8px; margin-bottom: 0;">
+        3 箇所すべてが一度のタイピングで書き換わる。<span class="kbd">Esc</span> で複数カーソル解除。
+      </p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Ctrl+D ファミリー一覧</h2>
+  <p>Ctrl+D を軸に、関連するショートカットを覚えるとほぼすべての複数選択ユースケースをカバーできます。</p>
+
+  <table>
+    <thead>
+      <tr><th>ショートカット</th><th>動作</th><th>使い所</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span></td>
+        <td>次の一致にカーソルを追加</td>
+        <td>1 箇所ずつ確認しながら広げたいとき</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">L</span></td>
+        <td>同一文字列を<strong>すべて</strong>一発選択</td>
+        <td>ファイル全体で確実に同じ単語を置換</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">K</span><span class="comma">,</span><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span></td>
+        <td>現在の選択を<strong>スキップ</strong>して次へ</td>
+        <td>「ここは変えたくない」箇所を飛ばす</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">U</span></td>
+        <td>直前に追加したカーソルを取り消す</td>
+        <td>Ctrl+D を押しすぎた時の「1 歩戻る」</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">クリック</span></td>
+        <td>クリック位置に手動でカーソル追加</td>
+        <td>関係ない行にも散らばせたいとき</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">↑</span> <span class="plus">/</span> <span class="kbd">↓</span></td>
+        <td>上下に<strong>縦方向</strong>のカーソル追加</td>
+        <td>縦に並んだ値・列の一括編集</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">ドラッグ</span></td>
+        <td>矩形（ボックス）選択</td>
+        <td>CSV / テーブル状データの列編集</td>
+      </tr>
+      <tr>
+        <td class="keys"><span class="kbd">Esc</span></td>
+        <td>複数カーソルを解除 → 単一カーソルに戻す</td>
+        <td>編集が終わったら忘れずに</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>Ctrl+D vs Ctrl+Shift+L vs Ctrl+H の使い分け</h2>
+  <p>同じ単語を置換する手段は 3 つあり、それぞれ得意領域が違います。</p>
+
+  <div class="compare-grid">
+    <div class="compare-card d">
+      <div class="compare-kbd"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span></div>
+      <h4>段階選択</h4>
+      <p>1 箇所ずつ追加。目で見て確認しながら選べる。</p>
+      <div class="scope">範囲: <strong>手動で拡大</strong></div>
+    </div>
+    <div class="compare-card l">
+      <div class="compare-kbd"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">L</span></div>
+      <h4>全選択</h4>
+      <p>ファイル内の一致を一瞬ですべて選ぶ。確実さ重視。</p>
+      <div class="scope">範囲: <strong>ファイル全体</strong></div>
+    </div>
+    <div class="compare-card h">
+      <div class="compare-kbd"><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">H</span></div>
+      <h4>検索・置換</h4>
+      <p>正規表現・大文字小文字・単語単位などを細かく制御可能。</p>
+      <div class="scope">範囲: <strong>条件で指定</strong></div>
+    </div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>やりたいこと</th><th>推奨</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>関数内の <code>user</code> 3 箇所だけ変えたい</td>
+        <td><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span> ×3</td>
+      </tr>
+      <tr>
+        <td>ファイル内の <code>userId</code> を <em>全部</em> <code>accountId</code> に</td>
+        <td><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">L</span></td>
+      </tr>
+      <tr>
+        <td>正規表現で <code>log\(.*\)</code> を無効化</td>
+        <td><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">H</span>（正規表現モード）</td>
+      </tr>
+      <tr>
+        <td>プロジェクト全体で文字列を置換</td>
+        <td><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Shift</span><span class="plus">+</span><span class="kbd">H</span></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>実用パターン 3 選</h2>
+
+  <h3>① 変数リネーム（スコープ限定）</h3>
+  <p>
+    LSP 経由の正式リネーム（<span class="kbd">F2</span>）より<strong>軽量で、関数内だけ</strong>といった狭い範囲に使いたい時に便利です。
+  </p>
+  <div class="code-block">
+<span class="com">// user → currentUser（この関数内だけ）</span><br>
+<span class="kw">function</span> <span class="fn">greet</span>(<span class="mark-sel">user</span>) {<br>
+&nbsp;&nbsp;<span class="kw">return</span> `Hello, ${<span class="mark-sel">user</span>.name}`;<br>
+}
+  </div>
+
+  <h3>② インポート文の一括編集</h3>
+  <p>パッケージ名変更やエイリアス変換に。1 行ずつ変えるより速い。</p>
+  <div class="code-block">
+<span class="kw">import</span> { a } <span class="kw">from</span> <span class="str">"<span class="mark-sel">@old/core</span>"</span>;<br>
+<span class="kw">import</span> { b } <span class="kw">from</span> <span class="str">"<span class="mark-sel">@old/core</span>/utils"</span>;<br>
+<span class="kw">import</span> { c } <span class="kw">from</span> <span class="str">"<span class="mark-sel">@old/core</span>/types"</span>;
+  </div>
+
+  <h3>③ 縦に並んだ値の一括編集（Ctrl+Alt+↓）</h3>
+  <p>
+    <code>.env</code> ファイルや設定オブジェクトの値を、縦方向に複数カーソルで一気に追加・編集できます。
+  </p>
+  <div class="code-block">
+DATABASE_URL=<span class="mark-cursor">&nbsp;</span><br>
+REDIS_URL=<span class="mark-cursor">&nbsp;</span><br>
+API_KEY=<span class="mark-cursor">&nbsp;</span>
+  </div>
+  <p style="color: var(--muted); font-size: 0.9rem;">
+    行末で <span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd mod">Alt</span><span class="plus">+</span><span class="kbd">↓</span> を連打 → 3 行目まで縦にカーソルを伸ばす → まとめてペースト。
+  </p>
+</section>
+
+<section>
+  <h2>ハマりどころと対処</h2>
+
+  <div class="tip warn">
+    <strong>Ctrl+D を押しすぎた:</strong> 余分なカーソルを <span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">U</span> で 1 つずつ戻せます。連打で複数回戻すのも可。
+  </div>
+
+  <div class="tip warn">
+    <strong>意図しない箇所まで選択された:</strong> その状態で <span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">K</span><span class="comma">,</span><span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">D</span> を押すと、今の選択をスキップして次へ移ります。
+  </div>
+
+  <div class="tip danger">
+    <strong>部分一致してしまう:</strong> <code>user</code> を選ぶと <code>username</code> の中の <code>user</code> も拾います。単語境界で止めたい場合は、検索ウィジェット（<span class="kbd mod">Ctrl</span><span class="plus">+</span><span class="kbd">F</span>）の「単語単位で検索」（<code>Match Whole Word</code>）を併用すると安全です。
+  </div>
+
+  <div class="tip">
+    <strong>複数カーソルから抜けたい:</strong> 編集が終わったら <span class="kbd">Esc</span> で単一カーソルに戻すクセをつけると、意図しない挙動を防げます。
+  </div>
+</section>
+
+<section>
+  <h2>まとめ</h2>
+  <ul style="padding-left: 24px; color: var(--text);">
+    <li><strong>Ctrl+D</strong> = 次の一致を 1 つずつ追加（段階的）</li>
+    <li><strong>Ctrl+Shift+L</strong> = 一発で全部選択（ファイル内）</li>
+    <li><strong>Ctrl+U</strong> = やりすぎたら 1 歩戻す</li>
+    <li><strong>Ctrl+K, Ctrl+D</strong> = 今の選択はスキップして次へ</li>
+    <li><strong>Ctrl+Alt+↑/↓</strong> = 縦方向のカーソルで列編集</li>
+    <li><strong>Esc</strong> = 複数カーソルを解除</li>
+  </ul>
+  <p style="margin-top: 16px;">
+    この 6 つを覚えれば、コードのリネームや一括編集のほとんどの場面で「マウスで範囲選択 → コピペ」をせずに済みます。
+  </p>
+</section>
+
+<footer style="text-align: center; color: var(--muted); font-size: 0.85rem; padding-top: 24px; border-top: 1px solid var(--border); margin-top: 40px;">
+  <p>Ctrl+D 系ショートカット徹底解説</p>
+  <p style="margin-top: 8px;">
+    <a href="vscode-shortcuts.html" style="color: var(--accent); text-decoration: none;">← ショートカット集に戻る</a>
+    &nbsp;/&nbsp;
+    <a href="../../index.html" style="color: var(--accent); text-decoration: none;">目次へ</a>
+  </p>
+</footer>
+
+</div>
+</body>
+</html>
