@@ -24,6 +24,7 @@
       --cat-gcp: #ea4335;
       --cat-claude: #da7756;
       --cat-github: #8957e5;
+      --cat-nodejs: #cb3837;
     }
 
     * {
@@ -203,6 +204,7 @@
     .cat-chip.gcp { background: rgba(234, 67, 53, 0.15); color: var(--cat-gcp); border: 1px solid rgba(234, 67, 53, 0.3); }
     .cat-chip.claude { background: rgba(218, 119, 86, 0.15); color: var(--cat-claude); border: 1px solid rgba(218, 119, 86, 0.3); }
     .cat-chip.github { background: rgba(137, 87, 229, 0.15); color: var(--cat-github); border: 1px solid rgba(137, 87, 229, 0.3); }
+    .cat-chip.nodejs { background: rgba(203, 56, 55, 0.15); color: var(--cat-nodejs); border: 1px solid rgba(203, 56, 55, 0.3); }
     .update-title {
       font-weight: 500;
       font-size: 0.98rem;
@@ -248,6 +250,7 @@
     .cat-card[data-cat="gcp"]:hover { border-color: var(--cat-gcp); }
     .cat-card[data-cat="claude"]:hover { border-color: var(--cat-claude); }
     .cat-card[data-cat="github"]:hover { border-color: var(--cat-github); }
+    .cat-card[data-cat="nodejs"]:hover { border-color: var(--cat-nodejs); }
     .cat-card .cat-icon { font-size: 2.4rem; margin-bottom: 0.75rem; }
     .cat-card .cat-name {
       font-size: 1.2rem;
@@ -438,10 +441,22 @@
         icon: "🐙",
         desc: "GitHub の認証・運用・CLI 関連",
       },
+      nodejs: {
+        name: "Node.js",
+        icon: "📦",
+        desc: "Node.js / npm / pnpm などのパッケージマネージャ",
+      },
     };
 
     // updated は YYYY-MM-DD HH:mm:ss (ローカル時刻) でソート精度を秒まで確保
     const PAGES = [
+      {
+        title: "npm と pnpm の違い",
+        desc: "同じ package.json を扱う 2 つのパッケージマネージャの設計思想の差を徹底比較。フラットな node_modules vs ハードリンク+symlink、ファントム依存、ディスク使用量、インストール速度、コマンド対応表、モノレポ対応、Corepack での導入、既存プロジェクトの移行チェックリストまで。",
+        url: "topics/nodejs/npm-vs-pnpm.html",
+        category: "nodejs",
+        updated: "2026-04-20 11:00:00",
+      },
       {
         title: "GitHub アカウント情報の保存先（VSCode 側 / OS 側）",
         desc: "GitHub 認証情報がどこに保存されるかを 3 層構造で整理。VSCode SecretStorage と Git Credential Manager の違い、Windows 資格情報マネージャー / macOS キーチェーンの具体エントリ、サインアウトしても git push が通る理由と完全削除手順まで。",

@@ -11,6 +11,7 @@
 | Hosting | [topics/hosting/hosting-comparison.html](topics/hosting/hosting-comparison.html) | 各種ホスティングサービスの比較解説 |
 | VSCode | [topics/vscode/vscode-shortcuts.html](topics/vscode/vscode-shortcuts.html) | VSCode キーボードショートカット集（カテゴリ別チートシート） |
 | VSCode | [topics/vscode/vscode-multi-cursor.html](topics/vscode/vscode-multi-cursor.html) | Ctrl+D 系ショートカット徹底解説（複数カーソルの使いこなし） |
+| Node.js | [topics/nodejs/npm-vs-pnpm.html](topics/nodejs/npm-vs-pnpm.html) | npm と pnpm の違い（node_modules 構造・ファントム依存・ディスク・速度・コマンド対応表） |
 
 ## 使い方
 
@@ -23,5 +24,6 @@ explanatory-material/
 └── topics/
     ├── git/         Git 関連の解説資料
     ├── hosting/     ホスティング関連の解説資料
+    ├── nodejs/      Node.js / npm / pnpm 関連の解説資料
     └── vscode/      VSCode 関連の解説資料
 ```
