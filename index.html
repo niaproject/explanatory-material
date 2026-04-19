@@ -23,6 +23,7 @@
       --cat-google: #4285f4;
       --cat-gcp: #ea4335;
       --cat-claude: #da7756;
+      --cat-github: #8957e5;
     }
 
     * {
@@ -201,6 +202,7 @@
     .cat-chip.google { background: rgba(66, 133, 244, 0.15); color: var(--cat-google); border: 1px solid rgba(66, 133, 244, 0.3); }
     .cat-chip.gcp { background: rgba(234, 67, 53, 0.15); color: var(--cat-gcp); border: 1px solid rgba(234, 67, 53, 0.3); }
     .cat-chip.claude { background: rgba(218, 119, 86, 0.15); color: var(--cat-claude); border: 1px solid rgba(218, 119, 86, 0.3); }
+    .cat-chip.github { background: rgba(137, 87, 229, 0.15); color: var(--cat-github); border: 1px solid rgba(137, 87, 229, 0.3); }
     .update-title {
       font-weight: 500;
       font-size: 0.98rem;
@@ -245,6 +247,7 @@
     .cat-card[data-cat="google"]:hover { border-color: var(--cat-google); }
     .cat-card[data-cat="gcp"]:hover { border-color: var(--cat-gcp); }
     .cat-card[data-cat="claude"]:hover { border-color: var(--cat-claude); }
+    .cat-card[data-cat="github"]:hover { border-color: var(--cat-github); }
     .cat-card .cat-icon { font-size: 2.4rem; margin-bottom: 0.75rem; }
     .cat-card .cat-name {
       font-size: 1.2rem;
@@ -430,10 +433,22 @@
         icon: "🤖",
         desc: "Claude Code の権限モード・運用のコツ",
       },
+      github: {
+        name: "GitHub",
+        icon: "🐙",
+        desc: "GitHub の認証・運用・CLI 関連",
+      },
     };
 
     // updated は YYYY-MM-DD HH:mm:ss (ローカル時刻) でソート精度を秒まで確保
     const PAGES = [
+      {
+        title: "GitHub アカウント情報の保存先（VSCode 側 / OS 側）",
+        desc: "GitHub 認証情報がどこに保存されるかを 3 層構造で整理。VSCode SecretStorage と Git Credential Manager の違い、Windows 資格情報マネージャー / macOS キーチェーンの具体エントリ、サインアウトしても git push が通る理由と完全削除手順まで。",
+        url: "topics/github/github-credentials-storage.html",
+        category: "github",
+        updated: "2026-04-19 11:45:00",
+      },
       {
         title: "Claude Code の自動モード vs バイパス権限モード",
         desc: "acceptEdits（編集のみ自動承認）と bypassPermissions（全ツール確認スキップ）の違い、Shift+Tab での切替、--dangerously-skip-permissions の危険性、ユースケース別の使い分けまで。",
