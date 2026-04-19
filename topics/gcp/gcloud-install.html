@@ -1,0 +1,977 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>gcloud CLI のインストール方法 | GCP 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --gw-blue: #4285f4;
+    --gw-red: #ea4335;
+    --gw-yellow: #fbbc04;
+    --gw-green: #34a853;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -10%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(66, 133, 244, 0.12) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header h1 {
+    font-size: 2.3rem;
+    background: linear-gradient(90deg, #4285f4, #34a853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; position: relative; }
+  .gw-logo {
+    display: inline-flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .gw-logo span {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .gw-logo span:nth-child(1) { background: var(--gw-blue); }
+  .gw-logo span:nth-child(2) { background: var(--gw-red); }
+  .gw-logo span:nth-child(3) { background: var(--gw-yellow); }
+  .gw-logo span:nth-child(4) { background: var(--gw-green); }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  h4 { font-size: 1.02rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+
+  /* OS タブ */
+  .os-tabs {
+    display: flex;
+    gap: 4px;
+    margin: 20px 0 0;
+    border-bottom: 2px solid var(--border);
+    flex-wrap: wrap;
+  }
+  .os-tab {
+    padding: 10px 22px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 0.95rem;
+    font-weight: 600;
+    cursor: pointer;
+    position: relative;
+    font-family: inherit;
+    transition: color 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .os-tab:hover { color: var(--text); }
+  .os-tab.active { color: var(--accent); }
+  .os-tab.active::after {
+    content: "";
+    position: absolute;
+    left: 0; right: 0;
+    bottom: -2px;
+    height: 2px;
+    background: var(--accent);
+  }
+  .os-tab .ic { font-size: 1.1rem; }
+  .os-panel { display: none; padding-top: 22px; }
+  .os-panel.active { display: block; }
+
+  /* 方法カード */
+  .method-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 14px 0;
+    border-top: 3px solid var(--accent);
+  }
+  .method-card.recommended { border-top-color: var(--gw-green); }
+  .method-card.pkg { border-top-color: var(--gw-blue); }
+  .method-card.manual { border-top-color: var(--gw-yellow); }
+  .method-card .mtitle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin-bottom: 8px;
+  }
+  .method-card .mtitle .tag {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: var(--gw-green);
+    color: #fff;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+  .method-card .mtitle .tag.opt {
+    background: var(--gw-yellow);
+    color: #000;
+  }
+  .method-card .mdesc {
+    color: var(--muted);
+    font-size: 0.92rem;
+    margin-bottom: 10px;
+  }
+
+  /* ステップ */
+  .steps { counter-reset: step-counter; margin: 16px 0; }
+  .step-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 22px 16px 64px;
+    margin-bottom: 12px;
+    position: relative;
+    counter-increment: step-counter;
+  }
+  .step-item::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 18px;
+    top: 16px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4285f4, #34a853);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.88rem;
+  }
+  .step-item h4 { font-size: 1rem; margin-bottom: 6px; }
+
+  /* Tips */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn {
+    background: rgba(240, 136, 62, 0.08);
+    border-left-color: var(--orange);
+  }
+  .tip.danger {
+    background: rgba(248, 81, 73, 0.08);
+    border-left-color: var(--red);
+  }
+  .tip.ok {
+    background: rgba(63, 185, 80, 0.08);
+    border-left-color: var(--green);
+  }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+  .tip.danger strong { color: var(--red); }
+  .tip.ok strong { color: var(--green); }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0 20px;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: top;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.nowrap { white-space: nowrap; width: 1%; }
+
+  /* URL ボックス */
+  .url-box {
+    background: var(--panel-2);
+    border: 1px dashed var(--gw-blue);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 10px 0 16px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    color: var(--accent);
+    word-break: break-all;
+  }
+
+  /* ハイライト（おすすめ OS 対応表） */
+  .os-matrix {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+  }
+  .os-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+  }
+  .os-card .oshdr {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-weight: 600;
+  }
+  .os-card .oshdr .ic { font-size: 1.3rem; }
+  .os-card .rec {
+    font-size: 0.82rem;
+    color: var(--gw-green);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .os-card .sub {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+
+  /* チェックリスト */
+  .checklist {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 16px 0;
+    list-style: none !important;
+    padding-left: 22px !important;
+  }
+  .checklist li {
+    position: relative;
+    padding-left: 28px;
+    margin-bottom: 10px;
+    list-style: none;
+  }
+  .checklist li::before {
+    content: "☐";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--gw-blue);
+    font-size: 1.1rem;
+    font-weight: bold;
+  }
+  .checklist li strong { color: var(--text); }
+
+  @media (max-width: 768px) {
+    header h1 { font-size: 1.6rem; }
+    th, td { padding: 10px 12px; font-size: 0.85rem; }
+    .os-tab { padding: 10px 14px; font-size: 0.88rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / Google Cloud / gcloud CLI のインストール
+</div>
+
+<header>
+  <div class="gw-logo"><span></span><span></span><span></span><span></span></div>
+  <h1>gcloud CLI のインストール方法</h1>
+  <p>Windows / macOS / Linux 別の推奨手順と、初期セットアップ・更新・アンインストールまで</p>
+</header>
+
+<section>
+  <h2>gcloud CLI とは</h2>
+  <p>
+    <strong>gcloud CLI</strong>（旧 Cloud SDK）は、Google Cloud のリソースをターミナルから操作するための公式 CLI ツールです。
+    以下のツール群が同梱されています。
+  </p>
+  <ul>
+    <li><code>gcloud</code> — Compute Engine / GKE / IAM / プロジェクト管理などメイン CLI</li>
+    <li><code>gsutil</code> — Cloud Storage（バケット / オブジェクト）操作</li>
+    <li><code>bq</code> — BigQuery 操作</li>
+    <li><code>gcloud storage</code> — gsutil の後継。大容量転送が高速</li>
+    <li>オプションで <code>kubectl</code> / <code>minikube</code> / <code>skaffold</code> などの<strong>コンポーネント</strong>を追加可能</li>
+  </ul>
+
+  <div class="tip">
+    <strong>前提:</strong> Python 3.9 以上が同梱されるため、別途 Python を用意する必要はありません（古いバンドルでは Python 3.8 同梱のこともあります）。
+    ネット接続、ディスク空き容量 <strong>約 500 MB</strong> が必要です。
+  </div>
+</section>
+
+<section>
+  <h2>OS ごとの推奨インストール方法</h2>
+  <p>まずは早見表。迷ったらここのおすすめで入れれば OK です。</p>
+  <div class="os-matrix">
+    <div class="os-card">
+      <div class="oshdr"><span class="ic">🪟</span>Windows</div>
+      <div class="rec">推奨: インストーラ (.exe)</div>
+      <div class="sub">公式の <code>GoogleCloudSDKInstaller.exe</code> を実行。PATH 登録も自動。</div>
+    </div>
+    <div class="os-card">
+      <div class="oshdr"><span class="ic">🍎</span>macOS</div>
+      <div class="rec">推奨: アーカイブ or Homebrew</div>
+      <div class="sub">Apple Silicon / Intel 別の <code>.tar.gz</code> を展開。Homebrew 派は <code>brew install --cask google-cloud-sdk</code>。</div>
+    </div>
+    <div class="os-card">
+      <div class="oshdr"><span class="ic">🐧</span>Linux (Debian / Ubuntu)</div>
+      <div class="rec">推奨: apt リポジトリ</div>
+      <div class="sub">公式 apt リポジトリを追加して <code>apt install google-cloud-cli</code>。更新が楽。</div>
+    </div>
+    <div class="os-card">
+      <div class="oshdr"><span class="ic">🐧</span>Linux (RHEL / Fedora)</div>
+      <div class="rec">推奨: dnf/yum リポジトリ</div>
+      <div class="sub"><code>/etc/yum.repos.d/google-cloud-sdk.repo</code> を作成して <code>dnf install google-cloud-cli</code>。</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>OS 別インストール手順</h2>
+
+  <div class="os-tabs" role="tablist">
+    <button class="os-tab active" data-os="windows"><span class="ic">🪟</span>Windows</button>
+    <button class="os-tab" data-os="mac"><span class="ic">🍎</span>macOS</button>
+    <button class="os-tab" data-os="linux"><span class="ic">🐧</span>Linux</button>
+  </div>
+
+  <!-- ===================== Windows ===================== -->
+  <div class="os-panel active" id="os-windows">
+
+    <div class="method-card recommended">
+      <div class="mtitle">公式インストーラ (.exe) <span class="tag">推奨</span></div>
+      <div class="mdesc">PATH 登録・Python 同梱・初回 <code>gcloud init</code> 起動までワンストップ。迷ったらこれ。</div>
+
+      <div class="steps">
+        <div class="step-item">
+          <h4>インストーラをダウンロード</h4>
+          <p>公式ダウンロードページから <code>GoogleCloudSDKInstaller.exe</code> を取得します。</p>
+          <div class="url-box">https://cloud.google.com/sdk/docs/install#windows</div>
+        </div>
+        <div class="step-item">
+          <h4>インストーラを実行</h4>
+          <p>ダブルクリックで起動し、ウィザードに従って進めます。<strong>ユーザー単位 / マシン全体</strong>どちらのインストールかを選択できます。</p>
+          <ul>
+            <li>「Single user」: 自分のユーザーにのみ適用（管理者権限不要）</li>
+            <li>「All users」: システム全体に適用（管理者権限が必要）</li>
+          </ul>
+        </div>
+        <div class="step-item">
+          <h4>完了後、PowerShell を開き直す</h4>
+          <p>PATH を反映させるため、<strong>今開いている PowerShell / コマンドプロンプトは一度閉じて開き直し</strong>ます。</p>
+        </div>
+        <div class="step-item">
+          <h4>動作確認と初期化</h4>
+<pre><code><span class="cmd">gcloud</span> version
+<span class="cmd">gcloud</span> init</code></pre>
+          <p><code>gcloud init</code> を実行するとブラウザが開き、Google アカウントでログインを求められます。</p>
+        </div>
+      </div>
+      <div class="tip warn">
+        <strong>PowerShell 実行ポリシー:</strong> 組織の GPO で <code>Restricted</code> になっているとインストーラの一部スクリプトが失敗することがあります。
+        その場合は管理者 PowerShell で <code>Set-ExecutionPolicy RemoteSigned -Scope CurrentUser</code> を実行してから再試行。
+      </div>
+    </div>
+
+    <div class="method-card pkg">
+      <div class="mtitle">Chocolatey <span class="tag opt">選択肢</span></div>
+      <div class="mdesc">パッケージ管理で入れたい人向け。更新も <code>choco upgrade</code> 一発。</div>
+<pre><code><span class="cmt"># 管理者 PowerShell で</span>
+<span class="cmd">choco</span> install gcloudsdk
+
+<span class="cmt"># 更新</span>
+<span class="cmd">choco</span> upgrade gcloudsdk</code></pre>
+    </div>
+
+    <div class="method-card pkg">
+      <div class="mtitle">Scoop <span class="tag opt">選択肢</span></div>
+      <div class="mdesc">管理者権限不要。Scoop ユーザーならこちら。</div>
+<pre><code><span class="cmd">scoop</span> bucket add extras
+<span class="cmd">scoop</span> install gcloud</code></pre>
+    </div>
+
+    <div class="method-card manual">
+      <div class="mtitle">手動アーカイブ展開 <span class="tag opt">上級</span></div>
+      <div class="mdesc">オフライン環境用。<code>google-cloud-cli-windows-x86_64.zip</code> を任意フォルダに展開し、同梱の <code>install.bat</code> を実行して PATH を通します。</div>
+    </div>
+
+    <div class="method-card manual">
+      <div class="mtitle">PATH を手動で通す（PowerShell） <span class="tag opt">トラブルシュート</span></div>
+      <div class="mdesc">
+        インストーラで入れたのに <code>gcloud: command not found</code> が出る、または手動アーカイブ展開後に PATH が通っていない場合、
+        PowerShell から <strong>ユーザー環境変数の PATH</strong> に直接追記できます。
+      </div>
+<pre><code><span class="cmt"># ユーザー環境変数 PATH に gcloud の bin を追記</span>
+[<span class="key">Environment</span>]::<span class="cmd">SetEnvironmentVariable</span>(<span class="str">"Path"</span>, $env:Path + <span class="str">";$env:LOCALAPPDATA\Google\Cloud SDK\google-cloud-sdk\bin"</span>, <span class="str">"User"</span>)</code></pre>
+
+      <h4 style="margin-top: 14px;">このコマンドが何をしているか</h4>
+      <ul>
+        <li><code>[Environment]::SetEnvironmentVariable(名前, 値, スコープ)</code> で環境変数を<strong>永続的に</strong>書き換える .NET API 呼び出し</li>
+        <li>第 1 引数 <code>"Path"</code>: 書き換える変数名</li>
+        <li>第 2 引数 <code>$env:Path + ";…\bin"</code>: 現在の PATH の末尾に gcloud の <code>bin</code> フォルダを追加</li>
+        <li>第 3 引数 <code>"User"</code>: <strong>ユーザー環境変数</strong>に保存（<code>"Machine"</code> にすればシステム全体／管理者権限必須）</li>
+        <li><code>$env:LOCALAPPDATA</code> は通常 <code>C:\Users\&lt;ユーザー名&gt;\AppData\Local</code> に展開される</li>
+      </ul>
+
+      <h4 style="margin-top: 14px;">確認手順</h4>
+<pre><code><span class="cmt"># 1. 現在開いている PowerShell をいったん閉じて、新しく開き直す</span>
+<span class="cmt">#    （SetEnvironmentVariable の結果は既存セッションには反映されない）</span>
+
+<span class="cmt"># 2. PATH に追加されたか確認</span>
+$env:<span class="key">Path</span> -split <span class="str">';'</span> | <span class="cmd">Select-String</span> <span class="str">'Cloud SDK'</span>
+
+<span class="cmt"># 3. gcloud が呼べるか確認</span>
+<span class="cmd">gcloud</span> version</code></pre>
+
+      <div class="tip warn">
+        <strong>ハマりポイント:</strong>
+        <ul style="margin: 6px 0 0 1.2em;">
+          <li><strong>現在のシェルには反映されない</strong> — 新しい PowerShell / コマンドプロンプトを開き直す必要があります。</li>
+          <li><strong>重複追加に注意</strong> — 複数回実行すると同じパスがいくつも並びます。実行前に <code>$env:Path</code> に含まれていないか確認を。</li>
+          <li><strong>インストール先が違う場合</strong> — 「All users」でインストールしていると実体は <code>C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin</code> にあるので、第 2 引数のパスを差し替えます。</li>
+        </ul>
+      </div>
+
+      <div class="tip">
+        <strong>「Machine」スコープで入れたい場合:</strong> 管理者 PowerShell を開き、第 3 引数を <code>"Machine"</code> に。
+        ただしユーザー単位で完結させられるならユーザースコープのほうが安全です。
+<pre style="margin: 8px 0 0;"><code><span class="cmt"># 管理者 PowerShell で</span>
+[<span class="key">Environment</span>]::<span class="cmd">SetEnvironmentVariable</span>(<span class="str">"Path"</span>, $env:Path + <span class="str">";C:\Program Files (x86)\Google\Cloud SDK\google-cloud-sdk\bin"</span>, <span class="str">"Machine"</span>)</code></pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== macOS ===================== -->
+  <div class="os-panel" id="os-mac">
+
+    <div class="method-card recommended">
+      <div class="mtitle">公式アーカイブ (.tar.gz) <span class="tag">推奨</span></div>
+      <div class="mdesc">Apple Silicon (ARM64) / Intel (x86_64) 別のアーカイブがあります。間違えると起動時に Rosetta を要求されます。</div>
+
+      <div class="steps">
+        <div class="step-item">
+          <h4>自分の Mac のアーキテクチャを確認</h4>
+<pre><code><span class="cmd">uname</span> -m
+<span class="cmt"># → arm64  なら Apple Silicon (M1/M2/M3)</span>
+<span class="cmt"># → x86_64 なら Intel Mac</span></code></pre>
+        </div>
+        <div class="step-item">
+          <h4>アーキテクチャに合ったアーカイブを取得</h4>
+<pre><code><span class="cmt"># Apple Silicon (arm64)</span>
+<span class="cmd">curl</span> -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-arm.tar.gz
+
+<span class="cmt"># Intel (x86_64)</span>
+<span class="cmd">curl</span> -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-darwin-x86_64.tar.gz</code></pre>
+        </div>
+        <div class="step-item">
+          <h4>展開してインストーラを実行</h4>
+<pre><code><span class="cmd">tar</span> -xf google-cloud-cli-darwin-arm.tar.gz
+<span class="cmd">./google-cloud-sdk/install.sh</span></code></pre>
+          <p>対話形式で PATH 追加・コマンド補完の設定を聞かれます。基本は全部 <code>Y</code> で OK。</p>
+        </div>
+        <div class="step-item">
+          <h4>シェルを再起動して初期化</h4>
+<pre><code><span class="cmd">exec</span> -l $SHELL
+<span class="cmd">gcloud</span> init</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="method-card pkg">
+      <div class="mtitle">Homebrew (Cask) <span class="tag opt">選択肢</span></div>
+      <div class="mdesc">Mac の定番パッケージマネージャ。<code>brew upgrade</code> で更新できて楽。</div>
+<pre><code><span class="cmd">brew</span> install --cask google-cloud-sdk
+
+<span class="cmt"># PATH / 補完を有効化（zsh の場合）</span>
+<span class="cmd">echo</span> <span class="str">'source "$(brew --prefix)/share/google-cloud-sdk/path.zsh.inc"'</span> >> ~/.zshrc
+<span class="cmd">echo</span> <span class="str">'source "$(brew --prefix)/share/google-cloud-sdk/completion.zsh.inc"'</span> >> ~/.zshrc
+<span class="cmd">source</span> ~/.zshrc</code></pre>
+      <div class="tip warn">
+        <strong>ハマりポイント:</strong> Cask 版は <code>brew install google-cloud-sdk</code>（Formula 版）ではなく
+        <code>brew install --cask google-cloud-sdk</code> です。Formula 版は存在しません。
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== Linux ===================== -->
+  <div class="os-panel" id="os-linux">
+
+    <div class="method-card recommended">
+      <div class="mtitle">Debian / Ubuntu — apt リポジトリ <span class="tag">推奨</span></div>
+      <div class="mdesc">公式の apt リポジトリを追加する方式。<code>apt upgrade</code> で自動更新されます。</div>
+<pre><code><span class="cmt"># 1. 必要なパッケージを導入</span>
+<span class="cmd">sudo</span> apt-get update
+<span class="cmd">sudo</span> apt-get install apt-transport-https ca-certificates gnupg curl
+
+<span class="cmt"># 2. Google の公開鍵を登録</span>
+<span class="cmd">curl</span> https://packages.cloud.google.com/apt/doc/apt-key.gpg \
+  | sudo gpg --dearmor -o /usr/share/keyrings/cloud.google.gpg
+
+<span class="cmt"># 3. リポジトリを追加</span>
+<span class="cmd">echo</span> <span class="str">"deb [signed-by=/usr/share/keyrings/cloud.google.gpg] \
+  https://packages.cloud.google.com/apt cloud-sdk main"</span> \
+  | sudo tee /etc/apt/sources.list.d/google-cloud-sdk.list
+
+<span class="cmt"># 4. インストール</span>
+<span class="cmd">sudo</span> apt-get update
+<span class="cmd">sudo</span> apt-get install google-cloud-cli
+
+<span class="cmt"># 5. 初期化</span>
+<span class="cmd">gcloud</span> init</code></pre>
+      <div class="tip">
+        <strong>kubectl や GKE 認証プラグインも入れるなら:</strong>
+        <pre style="margin: 8px 0 0;"><code><span class="cmd">sudo</span> apt-get install google-cloud-cli-gke-gcloud-auth-plugin kubectl</code></pre>
+      </div>
+    </div>
+
+    <div class="method-card recommended">
+      <div class="mtitle">RHEL / Fedora / Rocky — dnf リポジトリ <span class="tag">推奨</span></div>
+      <div class="mdesc">Red Hat 系はリポジトリファイルを作成してから <code>dnf install</code>。</div>
+<pre><code><span class="cmt"># 1. リポジトリファイルを作成</span>
+<span class="cmd">sudo</span> tee /etc/yum.repos.d/google-cloud-sdk.repo <span class="str">&lt;&lt;EOF
+[google-cloud-cli]
+name=Google Cloud CLI
+baseurl=https://packages.cloud.google.com/yum/repos/cloud-sdk-el9-x86_64
+enabled=1
+gpgcheck=1
+repo_gpgcheck=0
+gpgkey=https://packages.cloud.google.com/yum/doc/rpm-package-key.gpg
+EOF</span>
+
+<span class="cmt"># 2. インストール</span>
+<span class="cmd">sudo</span> dnf install google-cloud-cli
+
+<span class="cmt"># 3. 初期化</span>
+<span class="cmd">gcloud</span> init</code></pre>
+      <div class="tip warn">
+        <strong>OS バージョンに合わせる:</strong> <code>cloud-sdk-el9-x86_64</code> の <code>el9</code> は
+        RHEL 9 / Rocky Linux 9 用。RHEL 8 なら <code>el8</code>、ARM 系なら <code>-aarch64</code> に差し替えます。
+      </div>
+    </div>
+
+    <div class="method-card pkg">
+      <div class="mtitle">Snap <span class="tag opt">選択肢</span></div>
+      <div class="mdesc">snap が使える環境（Ubuntu など）なら 1 行で入ります。ただし更新頻度が遅めなのがデメリット。</div>
+<pre><code><span class="cmd">sudo</span> snap install google-cloud-cli --classic</code></pre>
+    </div>
+
+    <div class="method-card manual">
+      <div class="mtitle">手動アーカイブ (.tar.gz) <span class="tag opt">選択肢</span></div>
+      <div class="mdesc">root 権限のない環境や、特定バージョンに固定したい CI で使う方式。</div>
+<pre><code><span class="cmt"># ダウンロード (x86_64 の例)</span>
+<span class="cmd">curl</span> -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-linux-x86_64.tar.gz
+
+<span class="cmt"># 展開とインストール</span>
+<span class="cmd">tar</span> -xf google-cloud-cli-linux-x86_64.tar.gz
+<span class="cmd">./google-cloud-sdk/install.sh</span>
+<span class="cmd">exec</span> -l $SHELL
+<span class="cmd">gcloud</span> init</code></pre>
+      <div class="tip ok">
+        <strong>CI での使い方:</strong> 本番の Dockerfile やパイプラインで使うなら、公式イメージ
+        <code>gcr.io/google.com/cloudsdktool/google-cloud-cli:stable</code> を使うのが一番確実です。
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>インストール後の初期セットアップ</h2>
+  <p>インストールが終わったら、次の 3 ステップでアカウントとプロジェクトを結びつけます。</p>
+
+  <div class="steps">
+    <div class="step-item">
+      <h4><code>gcloud init</code> — 対話形式でまとめて設定</h4>
+      <p>初回はこれを叩けば OK。ブラウザが自動で開き、Google アカウントでの認可→デフォルトプロジェクト・リージョン選択まで一気に終わります。</p>
+<pre><code><span class="cmd">gcloud</span> init</code></pre>
+    </div>
+    <div class="step-item">
+      <h4>Application Default Credentials (ADC) の設定</h4>
+      <p>
+        ローカルで走らせる Python / Node.js 等の SDK（BigQuery クライアントなど）は、
+        <code>gcloud auth login</code> とは<strong>別の ADC 認証</strong>を使います。
+      </p>
+<pre><code><span class="cmd">gcloud</span> auth application-default login</code></pre>
+      <div class="tip warn">
+        <strong>混同注意:</strong>
+        <code>gcloud auth login</code> は gcloud 自身用、
+        <code>gcloud auth application-default login</code> はクライアントライブラリ用。
+        「ADC が見つからない」というエラーが出たら後者を実行するのが定番の解決策です。
+      </div>
+    </div>
+    <div class="step-item">
+      <h4>現在の設定を確認</h4>
+<pre><code><span class="cmd">gcloud</span> config list
+<span class="cmd">gcloud</span> auth list
+<span class="cmd">gcloud</span> projects list</code></pre>
+      <p>アカウント・プロジェクト・リージョンが想定どおりか確認しておきます。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2><code>gcloud init</code> を実行すると何が起きるか</h2>
+  <p>
+    <code>gcloud init</code> は「<strong>gcloud CLI と Google アカウント・プロジェクトを紐付ける対話セットアップ</strong>」を行うコマンドです。
+    内部的には <code>gcloud auth login</code> + <code>gcloud config set project …</code> + <code>gcloud config set compute/zone …</code> を順に実行するラッパーと考えると分かりやすいです。
+  </p>
+
+  <h3>実行フロー</h3>
+  <div class="steps">
+    <div class="step-item">
+      <h4>設定プロファイル（configuration）の選択</h4>
+      <p>
+        既存の configuration を使うか、<strong>新規作成</strong>するかを聞かれます。
+        configuration は「アカウント・プロジェクト・リージョンの組」の名前付きセットで、保存先は下記。
+      </p>
+      <ul>
+        <li>Linux / macOS: <code>~/.config/gcloud/configurations/config_&lt;name&gt;</code></li>
+        <li>Windows: <code>%APPDATA%\gcloud\configurations\config_&lt;name&gt;</code></li>
+      </ul>
+      <div class="tip">
+        <strong>使いどころ:</strong> 複数案件を切り替えるなら案件ごとに configuration を分けると安全。
+        <code>gcloud config configurations activate &lt;name&gt;</code> で切替、<code>gcloud config configurations list</code> で一覧表示。
+      </div>
+    </div>
+
+    <div class="step-item">
+      <h4>アカウント認証（OAuth ログイン）</h4>
+      <p>
+        <code>gcloud auth login</code> 相当の処理が走ります。
+        <strong>ブラウザが自動で開き</strong>、Google のログイン画面と「Google Cloud SDK がアカウントへのアクセスをリクエストしています」の同意画面が表示されます。
+        許可すると OAuth refresh token が <code>~/.config/gcloud/</code> に保存されます。
+      </p>
+      <div class="tip warn">
+        <strong>これは gcloud 自身用の認証:</strong> アプリ（Python / Node.js など）のクライアントライブラリが使う
+        <strong>ADC とは別物</strong>です。ADC は別途 <code>gcloud auth application-default login</code> が必要。
+      </div>
+    </div>
+
+    <div class="step-item">
+      <h4>デフォルトプロジェクトの選択</h4>
+      <p>
+        認可したアカウントがアクセスできる<strong>プロジェクト一覧</strong>が表示され、番号を入力して選びます。
+        新規プロジェクトをその場で作成することも可能。選んだ ID は <code>core/project</code> に保存され、以降 <code>--project</code> 省略で効きます。
+      </p>
+    </div>
+
+    <div class="step-item">
+      <h4>Compute Engine 既定リージョン / ゾーンの設定（任意）</h4>
+      <p>
+        Compute Engine API が有効なプロジェクトだと、<strong>デフォルトゾーン</strong>を聞かれます。
+        <code>asia-northeast1-a</code> 等を選ぶと <code>compute/zone</code> と <code>compute/region</code> に保存されます。
+      </p>
+      <p>
+        「Do you want to configure a default Compute Region and Zone?」で <code>N</code> を押せばスキップ可能。
+        Compute Engine を使わないなら不要です。
+      </p>
+    </div>
+  </div>
+
+  <h3>結果として保存されるもの</h3>
+  <p>実行後、<code>~/.config/gcloud/</code>（Windows は <code>%APPDATA%\gcloud\</code>）配下に以下のファイル群が作られます。</p>
+<pre><code>~/.config/gcloud/
+├── configurations/
+│   └── config_default         <span class="cmt"># [core] account, project / [compute] zone, region</span>
+├── credentials.db             <span class="cmt"># OAuth refresh token</span>
+├── access_tokens.db           <span class="cmt"># 短命アクセストークンキャッシュ</span>
+└── active_config              <span class="cmt"># 現在アクティブな configuration 名</span></code></pre>
+
+  <h3>完了後すぐに効く状態</h3>
+<pre><code><span class="cmd">gcloud</span> config list              <span class="cmt"># 保存された内容を確認</span>
+<span class="cmd">gcloud</span> projects list            <span class="cmt"># 権限のあるプロジェクト一覧</span>
+<span class="cmd">gcloud</span> compute instances list   <span class="cmt"># デフォルトプロジェクト/ゾーンで実行される</span></code></pre>
+
+  <h3>注意点</h3>
+  <table>
+    <thead>
+      <tr><th>ポイント</th><th>内容</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="nowrap">ADC は別扱い</td>
+        <td>Python / Node などのクライアントライブラリ用の認証は <code>gcloud auth application-default login</code> を別に実行しないと効かない。</td>
+      </tr>
+      <tr>
+        <td class="nowrap">ブラウザが無い環境</td>
+        <td>SSH 先 / CI などでは <code>gcloud init --no-browser</code>（古い版は <code>--console-only</code>）で、URL と認証コードを手コピーする方式に切替可能。</td>
+      </tr>
+      <tr>
+        <td class="nowrap">サービスアカウント運用</td>
+        <td><code>init</code> は不要。<code>gcloud auth activate-service-account --key-file=…</code> + <code>gcloud config set project …</code> で直接設定するのが適切。</td>
+      </tr>
+      <tr>
+        <td class="nowrap">やり直したい</td>
+        <td>複数回実行しても壊れない。<code>gcloud config configurations create &lt;new&gt;</code> で別 configuration を作り直せばクリーンにやり直せる。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="tip ok">
+    <strong>まとめると:</strong>
+    <code>gcloud init</code> は「<strong>OAuth ログイン + デフォルトプロジェクト設定</strong>を対話で済ませるためのラッパー」。
+    内部で行っていることを個別コマンドで書くとこう ↓
+<pre style="margin: 8px 0 0;"><code><span class="cmd">gcloud</span> auth login
+<span class="cmd">gcloud</span> config set project PROJECT_ID
+<span class="cmd">gcloud</span> config set compute/region asia-northeast1
+<span class="cmd">gcloud</span> config set compute/zone   asia-northeast1-a</code></pre>
+  </div>
+</section>
+
+<section>
+  <h2>コンポーネントの追加（kubectl など）</h2>
+  <p>
+    gcloud には「<strong>コンポーネント</strong>」という追加モジュールの仕組みがあります。
+    使うツールだけ選んで追加できるので、無駄に肥大化しません。
+  </p>
+
+  <h3>利用可能なコンポーネント一覧</h3>
+<pre><code><span class="cmd">gcloud</span> components list</code></pre>
+
+  <h3>よく使うコンポーネントの追加</h3>
+<pre><code><span class="cmt"># kubectl（GKE を使うなら必須）</span>
+<span class="cmd">gcloud</span> components install kubectl
+
+<span class="cmt"># GKE 認証プラグイン（kubectl 1.26+ では必須）</span>
+<span class="cmd">gcloud</span> components install gke-gcloud-auth-plugin
+
+<span class="cmt"># beta / alpha チャンネル</span>
+<span class="cmd">gcloud</span> components install beta alpha
+
+<span class="cmt"># minikube / skaffold / Cloud SQL Auth proxy など</span>
+<span class="cmd">gcloud</span> components install minikube skaffold cloud-sql-proxy</code></pre>
+
+  <div class="tip warn">
+    <strong>apt / dnf で入れた場合:</strong> <code>gcloud components install</code> が<strong>使えません</strong>（パッケージ管理の責務を奪わないため）。
+    該当コンポーネントは <code>google-cloud-cli-kubectl</code> のような個別パッケージで導入します。
+    <pre style="margin: 8px 0 0;"><code><span class="cmd">sudo</span> apt-get install google-cloud-cli-gke-gcloud-auth-plugin kubectl</code></pre>
+  </div>
+</section>
+
+<section>
+  <h2>更新 (upgrade) とアンインストール</h2>
+
+  <h3>更新</h3>
+  <table>
+    <thead>
+      <tr><th>インストール方法</th><th>更新コマンド</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap">Windows インストーラ / macOS / Linux アーカイブ</td><td><code>gcloud components update</code></td></tr>
+      <tr><td class="nowrap">Homebrew</td><td><code>brew upgrade --cask google-cloud-sdk</code></td></tr>
+      <tr><td class="nowrap">Chocolatey</td><td><code>choco upgrade gcloudsdk</code></td></tr>
+      <tr><td class="nowrap">apt</td><td><code>sudo apt-get update &amp;&amp; sudo apt-get upgrade google-cloud-cli</code></td></tr>
+      <tr><td class="nowrap">dnf/yum</td><td><code>sudo dnf upgrade google-cloud-cli</code></td></tr>
+      <tr><td class="nowrap">snap</td><td><code>sudo snap refresh google-cloud-cli</code></td></tr>
+    </tbody>
+  </table>
+
+  <h3>アンインストール</h3>
+<pre><code><span class="cmt"># Windows: コントロールパネルの「プログラムのアンインストール」から</span>
+<span class="cmt">#          または C:\Users\&lt;user&gt;\AppData\Local\Google\Cloud SDK\uninstaller.exe</span>
+
+<span class="cmt"># macOS / Linux (アーカイブ展開版): 展開フォルダごと削除</span>
+<span class="cmd">rm</span> -rf ~/google-cloud-sdk
+<span class="cmd">rm</span> -rf ~/.config/gcloud
+
+<span class="cmt"># Homebrew</span>
+<span class="cmd">brew</span> uninstall --cask google-cloud-sdk
+
+<span class="cmt"># apt / dnf</span>
+<span class="cmd">sudo</span> apt-get remove google-cloud-cli
+<span class="cmd">sudo</span> dnf remove google-cloud-cli</code></pre>
+  <div class="tip">
+    <strong>認証情報も消すには:</strong> <code>~/.config/gcloud/</code> (Linux/Mac) /
+    <code>%APPDATA%\gcloud\</code> (Windows) を削除します。ここに ADC トークンや設定 (configuration) が入っています。
+  </div>
+</section>
+
+<section>
+  <h2>よくあるハマりどころ</h2>
+  <table>
+    <thead>
+      <tr><th>症状</th><th>原因</th><th>対処</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>gcloud: command not found</code></td>
+        <td>PATH が通っていない / シェルを再起動していない</td>
+        <td>新しいターミナルを開く。macOS/Linux は <code>~/.zshrc</code> に <code>path.zsh.inc</code> の source を追記。Windows は PowerShell の <code>[Environment]::SetEnvironmentVariable("Path", …, "User")</code> で PATH を手動追加</td>
+      </tr>
+      <tr>
+        <td>ADC エラー（<code>Could not automatically determine credentials</code>）</td>
+        <td>ADC がまだ発行されていない</td>
+        <td><code>gcloud auth application-default login</code></td>
+      </tr>
+      <tr>
+        <td>kubectl が GKE に繋がらない（<code>exec plugin is missing</code>）</td>
+        <td>GKE 認証プラグイン未導入</td>
+        <td><code>gcloud components install gke-gcloud-auth-plugin</code> または個別パッケージ</td>
+      </tr>
+      <tr>
+        <td><code>gcloud components update</code> が失敗</td>
+        <td>apt / dnf 管理下では無効</td>
+        <td>パッケージマネージャでアップデート</td>
+      </tr>
+      <tr>
+        <td>Mac で「開発元を確認できない」警告</td>
+        <td>macOS Gatekeeper</td>
+        <td>システム設定 → プライバシーとセキュリティで「このまま開く」を許可</td>
+      </tr>
+      <tr>
+        <td>プロキシ環境で接続できない</td>
+        <td>プロキシ未設定</td>
+        <td><code>gcloud config set proxy/type http</code> などで設定 or <code>HTTPS_PROXY</code> 環境変数</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>インストール後チェックリスト</h2>
+  <p>最初の検証として、以下を一通り実行できれば完了です。</p>
+  <ul class="checklist">
+    <li><code>gcloud version</code> でバージョンが表示される</li>
+    <li><code>gcloud init</code> で Google アカウントとプロジェクトを紐付けた</li>
+    <li><code>gcloud auth application-default login</code> で ADC を発行した</li>
+    <li><code>gcloud config list</code> で <strong>account / project / region</strong> が想定どおり</li>
+    <li><code>gcloud projects list</code> で自分が権限を持つプロジェクトが出る</li>
+    <li>シェル補完（タブキーでコマンド補完）が効く</li>
+    <li>（GKE を使うなら）<code>kubectl</code> と <code>gke-gcloud-auth-plugin</code> が入っている</li>
+  </ul>
+</section>
+
+<section>
+  <h2>まとめ</h2>
+  <ul>
+    <li>Windows は<strong>公式インストーラ</strong>、macOS は<strong>アーカイブ or Homebrew Cask</strong>、Linux は<strong>apt / dnf リポジトリ</strong>が推奨。</li>
+    <li>インストール後の定型セットは <code>gcloud init</code> → <code>gcloud auth application-default login</code> の 2 本立て。</li>
+    <li>追加ツールは <code>gcloud components install</code>（アーカイブ版）か、パッケージ版の個別サブパッケージで追加。</li>
+    <li>更新はインストール方法ごとにコマンドが違うので、<strong>入れた経路に合わせて揃える</strong>のが鉄則。</li>
+    <li>CI や Docker で使うなら、公式イメージ <code>google-cloud-cli:stable</code> を使うのが一番安定します。</li>
+  </ul>
+</section>
+
+</div>
+
+<script>
+  // OS タブ切替
+  const osTabs = document.querySelectorAll(".os-tab");
+  const osPanels = document.querySelectorAll(".os-panel");
+  osTabs.forEach(tab => {
+    tab.addEventListener("click", () => {
+      osTabs.forEach(t => t.classList.remove("active"));
+      osPanels.forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      document.getElementById("os-" + tab.dataset.os).classList.add("active");
+    });
+  });
+</script>
+</body>
+</html>

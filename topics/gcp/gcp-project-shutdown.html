@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Google Cloud プロジェクトのシャットダウン | GCP 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --gw-blue: #4285f4;
+    --gw-red: #ea4335;
+    --gw-yellow: #fbbc04;
+    --gw-green: #34a853;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -10%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(234, 67, 53, 0.12) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header h1 {
+    font-size: 2.3rem;
+    background: linear-gradient(90deg, #ea4335, #fbbc04);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; position: relative; }
+  .gw-logo {
+    display: inline-flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .gw-logo span {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .gw-logo span:nth-child(1) { background: var(--gw-blue); }
+  .gw-logo span:nth-child(2) { background: var(--gw-red); }
+  .gw-logo span:nth-child(3) { background: var(--gw-yellow); }
+  .gw-logo span:nth-child(4) { background: var(--gw-green); }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  h4 { font-size: 1.02rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+
+  /* タイムライン */
+  .timeline {
+    position: relative;
+    margin: 20px 0 30px;
+    padding-left: 40px;
+  }
+  .timeline::before {
+    content: "";
+    position: absolute;
+    left: 15px;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .tl-item {
+    position: relative;
+    padding: 14px 18px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 14px;
+  }
+  .tl-item::before {
+    content: "";
+    position: absolute;
+    left: -33px;
+    top: 20px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--gw-blue);
+    border: 3px solid var(--bg);
+  }
+  .tl-item.danger::before { background: var(--red); }
+  .tl-item.success::before { background: var(--green); }
+  .tl-item .when {
+    font-size: 0.78rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 4px;
+  }
+  .tl-item .ttl {
+    font-weight: 600;
+    margin-bottom: 6px;
+  }
+  .tl-item .dsc {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  /* 2 カラム比較 */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin: 16px 0;
+  }
+  .col-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .col-card.stop { border-top: 3px solid var(--red); }
+  .col-card.keep { border-top: 3px solid var(--green); }
+  .col-card .ch {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 8px;
+  }
+  .col-card.stop .ch { color: var(--red); }
+  .col-card.keep .ch { color: var(--green); }
+  .col-card ul { margin: 0 0 0 1.2em; font-size: 0.92rem; }
+  .col-card li { margin-bottom: 4px; color: var(--text); }
+
+  /* 方法カード */
+  .method-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin: 14px 0;
+  }
+  .method-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    border-top: 3px solid var(--accent);
+  }
+  .method-card.console { border-top-color: var(--gw-blue); }
+  .method-card.gcloud { border-top-color: var(--gw-yellow); }
+  .method-card.gws { border-top-color: var(--gw-green); }
+  .method-card .num-badge {
+    display: inline-block;
+    width: 26px;
+    height: 26px;
+    background: linear-gradient(135deg, #ea4335, #fbbc04);
+    color: #fff;
+    border-radius: 50%;
+    text-align: center;
+    line-height: 26px;
+    font-weight: bold;
+    font-size: 0.85rem;
+    margin-right: 8px;
+  }
+  .method-card .ttl {
+    font-weight: 600;
+    font-size: 1rem;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+  }
+  .method-card .dsc {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-bottom: 10px;
+  }
+  .method-card pre {
+    margin: 0;
+    padding: 10px 12px;
+    font-size: 0.82rem;
+  }
+
+  /* ステップ */
+  .steps { counter-reset: step-counter; }
+  .step-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px 18px 68px;
+    margin-bottom: 14px;
+    position: relative;
+    counter-increment: step-counter;
+  }
+  .step-item::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 20px;
+    top: 18px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ea4335, #fbbc04);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+  .step-item h4 { font-size: 1.05rem; margin-bottom: 8px; }
+
+  /* メニューパンくず */
+  .menu-path {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 6px 0 10px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9rem;
+  }
+  .menu-path .part {
+    padding: 2px 8px;
+    background: var(--panel);
+    border-radius: 4px;
+    color: var(--text);
+  }
+  .menu-path .part.final {
+    background: var(--gw-blue);
+    color: #fff;
+    font-weight: bold;
+  }
+  .menu-path .sep {
+    color: var(--muted);
+    font-weight: bold;
+  }
+
+  /* Tips */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn {
+    background: rgba(240, 136, 62, 0.08);
+    border-left-color: var(--orange);
+  }
+  .tip.danger {
+    background: rgba(248, 81, 73, 0.08);
+    border-left-color: var(--red);
+  }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+  .tip.danger strong { color: var(--red); }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0 20px;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: top;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.nowrap { white-space: nowrap; width: 1%; }
+
+  /* チェックリスト */
+  .checklist {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 16px 0;
+    list-style: none !important;
+    padding-left: 22px !important;
+  }
+  .checklist li {
+    position: relative;
+    padding-left: 28px;
+    margin-bottom: 10px;
+    list-style: none;
+  }
+  .checklist li::before {
+    content: "☐";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--gw-blue);
+    font-size: 1.1rem;
+    font-weight: bold;
+  }
+  .checklist li strong { color: var(--text); }
+
+  /* URL ボックス */
+  .url-box {
+    background: var(--panel-2);
+    border: 1px dashed var(--gw-blue);
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin: 10px 0 16px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    color: var(--accent);
+    word-break: break-all;
+  }
+
+  @media (max-width: 768px) {
+    header h1 { font-size: 1.6rem; }
+    th, td { padding: 10px 12px; font-size: 0.85rem; }
+    .two-col { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / Google Cloud / プロジェクトのシャットダウン
+</div>
+
+<header>
+  <div class="gw-logo"><span></span><span></span><span></span><span></span></div>
+  <h1>Google Cloud プロジェクトのシャットダウン</h1>
+  <p>30 日猶予つき「削除予定」状態への移行手順と、停止されるもの・されないもの</p>
+</header>
+
+<section>
+  <h2>「シャットダウン」とは何か</h2>
+  <p>
+    Google Cloud の「<strong>シャットダウン (Shut down)</strong>」は、プロジェクトを<strong>即削除ではなく「削除予定」状態に移す</strong>操作です。
+    <strong>30 日間の猶予</strong>があり、その間は復元できますが、期間を過ぎると物理削除され、同じプロジェクト ID は二度と使えません。
+  </p>
+
+  <h3>削除までのタイムライン</h3>
+  <div class="timeline">
+    <div class="tl-item danger">
+      <div class="when">Day 0</div>
+      <div class="ttl">シャットダウン実行</div>
+      <div class="dsc">配下の全リソース（VM / GKE / Cloud Run / BigQuery / Storage 等）への API アクセスが即時遮断。課金も新規発生分は停止。</div>
+    </div>
+    <div class="tl-item">
+      <div class="when">Day 1 〜 Day 29</div>
+      <div class="ttl">削除予定（復元可）</div>
+      <div class="dsc">リソースは停止状態で保持される。<code>gcloud projects undelete</code> で復元可能。</div>
+    </div>
+    <div class="tl-item danger">
+      <div class="when">Day 30</div>
+      <div class="ttl">物理削除</div>
+      <div class="dsc">プロジェクトと配下リソースが完全消去。<strong>プロジェクト ID は再利用不可</strong>。</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>何が止まる？ / 何が残る？</h2>
+  <div class="two-col">
+    <div class="col-card stop">
+      <div class="ch">⛔ 停止されるもの</div>
+      <ul>
+        <li><strong>コンピュート系</strong>: Compute Engine / GKE / Cloud Run / Cloud Functions がすべて停止</li>
+        <li><strong>ネットワーク</strong>: VPC、LB、外部 IP、Cloud DNS レコードが無効化</li>
+        <li><strong>データアクセス</strong>: Cloud Storage / BigQuery / Cloud SQL への読み書き不可（データ自体は 30 日保持）</li>
+        <li><strong>API アクセス</strong>: 配下の全エンドポイントが 403</li>
+        <li><strong>OAuth クライアント</strong>: 発行したクライアント ID が無効化 → 紐づくアプリのログインが失敗</li>
+        <li><strong>サービスアカウント</strong>: 鍵も無効化 → CI / バッチが一斉に落ちる</li>
+        <li><strong>IAM バインディング</strong>: プロジェクト単位の権限が無効化</li>
+        <li><strong>課金</strong>: 新規のリソース課金は停止</li>
+      </ul>
+    </div>
+    <div class="col-card keep">
+      <div class="ch">✅ 残るもの</div>
+      <ul>
+        <li><strong>組織 / フォルダ階層</strong>: 親階層は影響なし</li>
+        <li><strong>請求先アカウント</strong>: 他プロジェクトで引き続き使える</li>
+        <li><strong>削除予定中のデータ</strong>: 30 日以内なら復元可能</li>
+        <li><strong>既発生の請求</strong>: シャットダウン前の使用分は翌月請求書に計上される</li>
+        <li><strong>他プロジェクトへの参照</strong>: 他プロジェクトに作ったリソースはそのまま</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>シャットダウンする 3 つの方法</h2>
+  <div class="method-grid">
+    <div class="method-card console">
+      <div class="ttl"><span class="num-badge">1</span>Cloud Console (GUI)</div>
+      <div class="dsc">ブラウザで操作。一番安全で、確認ダイアログもある。初回や不安なときはこれ。</div>
+    </div>
+    <div class="method-card gcloud">
+      <div class="ttl"><span class="num-badge">2</span>gcloud CLI</div>
+      <div class="dsc">スクリプトで一気にやりたい時。Console と同じ 30 日猶予の動き。</div>
+<pre><code><span class="cmd">gcloud</span> projects delete PROJECT_ID</code></pre>
+    </div>
+    <div class="method-card gws">
+      <div class="ttl"><span class="num-badge">3</span>gws CLI 経由</div>
+      <div class="dsc">Workspace CLI から Cloud Resource Manager API を叩く方法。</div>
+<pre><code><span class="cmd">gws</span> cloudresourcemanager <span class="str">\
+</span>  projects delete <span class="str">\
+</span>  --params <span class="str">'{"projectId":"PROJECT_ID"}'</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Cloud Console から削除する手順</h2>
+
+  <div class="steps">
+    <div class="step-item">
+      <h4>Cloud Console を開いてプロジェクトを選択</h4>
+      <p>
+        <a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a>
+        を開き、画面上部のプロジェクト選択プルダウンから<strong>削除したいプロジェクト</strong>を選びます。
+        プロジェクト名と ID を目視確認してください（別プロジェクトの誤削除防止）。
+      </p>
+    </div>
+
+    <div class="step-item">
+      <h4>「IAM と管理」→「設定」を開く</h4>
+      <p>左上の <strong>≡（ハンバーガー）</strong> からナビゲーションを開き、以下の階層を辿ります。</p>
+      <div class="menu-path">
+        <span class="part">≡</span>
+        <span class="sep">›</span>
+        <span class="part">IAM と管理</span>
+        <span class="sep">›</span>
+        <span class="part final">設定</span>
+      </div>
+      <p>
+        「IAM と管理」のサブメニューの<strong>一番下の方</strong>に「<strong>設定</strong>」があります。
+        IAM / PAM / サービス アカウント / ラベル / タグ などと並んでいるので、見落としがちです。
+      </p>
+      <div class="tip">
+        <strong>直接 URL でも OK:</strong>
+        <div class="url-box">https://console.cloud.google.com/iam-admin/settings?project=PROJECT_ID</div>
+        UI が変わった・メニューが見つからないときはこの URL が確実です。
+      </div>
+    </div>
+
+    <div class="step-item">
+      <h4>「シャットダウン」ボタンを押す</h4>
+      <p>
+        設定ページの上部に<strong>プロジェクト名 / プロジェクト ID / プロジェクト番号</strong>が表示されます。
+        その近くにある「<strong>シャットダウン</strong>」（英語 UI では <strong>SHUT DOWN</strong>）ボタンをクリック。
+      </p>
+    </div>
+
+    <div class="step-item">
+      <h4>確認ダイアログにプロジェクト ID を入力</h4>
+      <p>
+        「削除するには以下のプロジェクト ID を入力してください」と表示されるので、<strong>プロジェクト ID をそのまま入力</strong>します。
+        プロジェクト<strong>名ではなく ID</strong> である点に注意。コピペ推奨です。
+      </p>
+    </div>
+
+    <div class="step-item">
+      <h4>最終の「シャットダウン」をクリック</h4>
+      <p>「プロジェクトは削除が予定されました」と表示されれば完了です。以降 30 日間は削除予定状態です。</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>「設定」が見つからないときの代替ルート</h2>
+  <p>「IAM と管理」メニューを開いても「設定」項目が見つからない場合、次の順で試してください。</p>
+
+  <h3>ルート A: 直接 URL（最速）</h3>
+  <div class="url-box">https://console.cloud.google.com/iam-admin/settings?project=PROJECT_ID</div>
+
+  <h3>ルート B: 画面上部の検索バー</h3>
+  <p>Console 上部の検索バーに以下のいずれかを入力し、候補から「IAM と管理 → 設定」を選ぶ。</p>
+  <ul>
+    <li><code>シャットダウン</code></li>
+    <li><code>IAM 設定</code></li>
+    <li><code>プロジェクトの設定</code></li>
+    <li>英語 UI: <code>Shut down</code> / <code>Project settings</code></li>
+  </ul>
+
+  <h3>ルート C: Resource Manager の一覧から削除</h3>
+  <div class="url-box">https://console.cloud.google.com/cloud-resource-manager</div>
+  <p>プロジェクト一覧から対象行の <strong>⋮（三点メニュー）</strong> → 「削除」。一覧から直接削除できるルートです。</p>
+
+  <h3>ルート D: CLI で済ませる</h3>
+<pre><code><span class="cmd">gcloud</span> projects delete PROJECT_ID</code></pre>
+  <p>UI が不調なとき、最も確実に削除できるのはこちら。</p>
+</section>
+
+<section>
+  <h2>削除できない / ボタンが押せないとき</h2>
+  <table>
+    <thead>
+      <tr><th>症状</th><th>原因</th><th>対処</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ボタンがグレーアウト</td>
+        <td>自分に <code>roles/owner</code> が無い</td>
+        <td>オーナーに依頼 or 権限付与</td>
+      </tr>
+      <tr>
+        <td>「組織のポリシーで禁止」</td>
+        <td>組織管理者が <code>constraints/resourcemanager.allowDelete</code> で禁止</td>
+        <td>組織管理者に解除を依頼</td>
+      </tr>
+      <tr>
+        <td>「請求先アカウントにリンクされている」警告</td>
+        <td>警告のみ（ブロックではない）</td>
+        <td>そのまま進めて OK。気になるなら事前に請求リンク解除</td>
+      </tr>
+      <tr>
+        <td>「リソースを含むため削除できない」</td>
+        <td>CMEK キーなど一部リソースが残っている</td>
+        <td>該当リソースを個別削除してから再試行</td>
+      </tr>
+      <tr>
+        <td>メニューに「設定」が出ない</td>
+        <td>権限不足 / 画面崩れ</td>
+        <td>上記「ルート A 〜 D」で回避</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>復元したいとき（30 日以内）</h2>
+  <p>削除予定中なら、同じ設定ページに「<strong>復元</strong>」ボタンが出ます。CLI なら 1 行:</p>
+<pre><code><span class="cmd">gcloud</span> projects undelete PROJECT_ID</code></pre>
+  <div class="tip warn">
+    <strong>30 日を過ぎたら:</strong> 復元は<strong>不可能</strong>。しかも同じプロジェクト ID は永久に使えなくなります。
+    再構築する場合は新しい ID を付ける必要があります。
+  </div>
+</section>
+
+<section>
+  <h2>シャットダウン前チェックリスト</h2>
+  <p>押す前に一度目を通しておくと事故を防げます。</p>
+  <ul class="checklist">
+    <li><strong>プロジェクト ID を控えた</strong>（復元や記録のため）</li>
+    <li>対象プロジェクト配下で発行した <strong>OAuth クライアント ID</strong> が、他のアプリ・端末で使われていないか確認</li>
+    <li><strong>サービスアカウント鍵</strong> が CI / バッチ / 他プロジェクトに埋め込まれていないか確認</li>
+    <li>BigQuery / Cloud Storage 上に<strong>残したいデータ</strong>があればエクスポート</li>
+    <li>Cloud DNS / LB / 外部 IP の<strong>外部ユーザーへの影響</strong>を洗い出し</li>
+    <li>請求先アカウントで発生済み利用分の<strong>翌月請求額</strong>を確認</li>
+    <li>他のプロジェクトやフォルダから<strong>このプロジェクト ID を参照</strong>していないか確認</li>
+  </ul>
+</section>
+
+<section>
+  <h2>まとめ</h2>
+  <ul>
+    <li>「シャットダウン」は<strong>30 日猶予つきの削除予定化</strong>。即削除ではない。</li>
+    <li>実行経路は Cloud Console / <code>gcloud projects delete</code> / <code>gws</code> の 3 つ。</li>
+    <li>Console からの場所は「<strong>IAM と管理 → 設定</strong>」。見つからなければ直接 URL
+      <code>/iam-admin/settings?project=…</code> が最速。</li>
+    <li>実行直後に OAuth クライアント / サービスアカウント / API アクセスが<strong>一斉に止まる</strong>ことを忘れずに。</li>
+    <li>30 日を過ぎると<strong>プロジェクト ID が永久欠番</strong>になる点が一番の落とし穴。</li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

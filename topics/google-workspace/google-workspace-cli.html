@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Google Workspace CLI (gws) 入門 | Google Workspace 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --gw-blue: #4285f4;
+    --gw-red: #ea4335;
+    --gw-yellow: #fbbc04;
+    --gw-green: #34a853;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -10%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(66, 133, 244, 0.12) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header h1 {
+    font-size: 2.3rem;
+    background: linear-gradient(90deg, #4285f4, #34a853);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; position: relative; }
+  header .pkg {
+    display: inline-block;
+    margin-top: 12px;
+    padding: 6px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.85rem;
+    color: var(--gw-blue);
+    position: relative;
+  }
+  .gw-logo {
+    display: inline-flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .gw-logo span {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .gw-logo span:nth-child(1) { background: var(--gw-blue); }
+  .gw-logo span:nth-child(2) { background: var(--gw-red); }
+  .gw-logo span:nth-child(3) { background: var(--gw-yellow); }
+  .gw-logo span:nth-child(4) { background: var(--gw-green); }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  h4 { font-size: 1.02rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+
+  /* 命名・文法カード */
+  .syntax-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--gw-blue);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 16px 0;
+  }
+  .syntax-line {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 1rem;
+    margin-bottom: 12px;
+    color: var(--text);
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .syntax-line .slot {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 6px;
+    margin: 0 2px;
+    font-size: 0.9rem;
+  }
+  .syntax-line .slot.fixed { background: var(--panel-2); color: var(--accent); font-weight: bold; }
+  .syntax-line .slot.s1 { background: rgba(66, 133, 244, 0.18); color: var(--gw-blue); }
+  .syntax-line .slot.s2 { background: rgba(251, 188, 4, 0.18); color: var(--gw-yellow); }
+  .syntax-line .slot.s3 { background: rgba(234, 67, 53, 0.18); color: var(--gw-red); }
+  .syntax-line .slot.s4 { background: rgba(52, 168, 83, 0.18); color: var(--gw-green); }
+  .syntax-legend {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 6px 14px;
+    font-size: 0.88rem;
+  }
+  .syntax-legend dt {
+    font-family: "SF Mono", Consolas, monospace;
+    font-weight: bold;
+  }
+  .syntax-legend dd { color: var(--muted); }
+  .syntax-legend .c1 { color: var(--gw-blue); }
+  .syntax-legend .c2 { color: var(--gw-yellow); }
+  .syntax-legend .c3 { color: var(--gw-red); }
+  .syntax-legend .c4 { color: var(--gw-green); }
+
+  /* できること一覧 */
+  .feature-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 14px;
+    margin: 14px 0;
+  }
+  .feature-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .feature-card .ic {
+    font-size: 1.6rem;
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--panel-2);
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+  .feature-card .ttl {
+    font-weight: 600;
+    margin-bottom: 4px;
+    font-size: 0.98rem;
+  }
+  .feature-card .dsc {
+    color: var(--muted);
+    font-size: 0.85rem;
+    line-height: 1.55;
+  }
+
+  /* 対応サービス badge */
+  .svc-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 20px;
+  }
+  .svc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 6px 12px;
+    font-size: 0.85rem;
+    color: var(--text);
+  }
+  .svc.hi { border-color: var(--gw-blue); color: var(--gw-blue); font-weight: 600; }
+
+  /* ステップ */
+  .steps { counter-reset: step-counter; }
+  .step-item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px 18px 68px;
+    margin-bottom: 14px;
+    position: relative;
+    counter-increment: step-counter;
+  }
+  .step-item::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 20px;
+    top: 18px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #4285f4, #34a853);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+  .step-item h4 { font-size: 1.05rem; margin-bottom: 8px; }
+
+  /* メニューパンくず */
+  .menu-path {
+    display: inline-flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 4px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    margin: 6px 0 10px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9rem;
+  }
+  .menu-path .part {
+    padding: 2px 8px;
+    background: var(--panel);
+    border-radius: 4px;
+    color: var(--text);
+  }
+  .menu-path .part.final {
+    background: var(--gw-blue);
+    color: #fff;
+    font-weight: bold;
+  }
+  .menu-path .sep {
+    color: var(--muted);
+    font-weight: bold;
+  }
+
+  /* Tips */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn {
+    background: rgba(240, 136, 62, 0.08);
+    border-left-color: var(--orange);
+  }
+  .tip.danger {
+    background: rgba(248, 81, 73, 0.08);
+    border-left-color: var(--red);
+  }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+  .tip.danger strong { color: var(--red); }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0 20px;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: top;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.flag-col { white-space: nowrap; width: 1%; }
+  td.flag-col code { font-size: 0.85rem; }
+
+  /* 処理フロー */
+  .flow {
+    display: flex;
+    align-items: stretch;
+    gap: 10px;
+    margin: 18px 0;
+    flex-wrap: wrap;
+  }
+  .flow-node {
+    flex: 1;
+    min-width: 150px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+  }
+  .flow-node .icon { font-size: 1.6rem; margin-bottom: 6px; }
+  .flow-node .title { font-weight: 600; font-size: 0.95rem; margin-bottom: 4px; }
+  .flow-node .sub { color: var(--muted); font-size: 0.78rem; }
+  .flow-arrow { align-self: center; color: var(--accent); font-size: 1.5rem; font-weight: bold; }
+  .flow-node.you   { border-top: 3px solid var(--gw-blue); }
+  .flow-node.cli   { border-top: 3px solid var(--gw-yellow); }
+  .flow-node.api   { border-top: 3px solid var(--gw-red); }
+  .flow-node.docs  { border-top: 3px solid var(--gw-green); }
+
+  /* 情報ボックス */
+  .meta-card {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 10px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin: 16px 0;
+  }
+  .meta-card .kv {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .meta-card .k {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .meta-card .v {
+    font-size: 0.95rem;
+    color: var(--text);
+    font-family: "SF Mono", Consolas, monospace;
+    word-break: break-all;
+  }
+  .meta-card .v a { color: var(--accent); text-decoration: none; }
+  .meta-card .v a:hover { text-decoration: underline; }
+
+  @media (max-width: 768px) {
+    header h1 { font-size: 1.6rem; }
+    th, td { padding: 10px 12px; font-size: 0.85rem; }
+    .flow { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+    .syntax-line { font-size: 0.85rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / Google Workspace / CLI (gws) 入門
+</div>
+
+<header>
+  <div class="gw-logo"><span></span><span></span><span></span><span></span></div>
+  <h1>Google Workspace CLI (gws) 入門</h1>
+  <p>27 サービスをターミナル 1 つで操る、Google 謹製の CLI</p>
+  <div class="pkg">npm i -g @googleworkspace/cli</div>
+</header>
+
+<section>
+  <h2>これは何？ — 正体をひとことで</h2>
+  <p>
+    <strong>Google Workspace CLI</strong>（通称 <code>gws</code>）は、Gmail / Calendar / Drive / Docs / Sheets / Slides など
+    <strong>27 の Google サービス</strong>をコマンドラインから操作できる CLI ツールです。
+    Google の <strong>Developer Relations</strong> チームが開発し、<code>googleworkspace</code> 公式 GitHub 組織で配布しています。
+  </p>
+
+  <div class="meta-card">
+    <div class="kv"><span class="k">パッケージ名</span><span class="v">@googleworkspace/cli</span></div>
+    <div class="kv"><span class="k">実行コマンド</span><span class="v">gws</span></div>
+    <div class="kv"><span class="k">リポジトリ</span><span class="v"><a href="https://github.com/googleworkspace/cli" target="_blank" rel="noopener">github.com/googleworkspace/cli</a></span></div>
+    <div class="kv"><span class="k">配布</span><span class="v">npm（グローバルインストール）</span></div>
+    <div class="kv"><span class="k">実装言語</span><span class="v">Node.js / TypeScript</span></div>
+    <div class="kv"><span class="k">バージョン例</span><span class="v">0.3.4 時点</span></div>
+  </div>
+
+  <div class="tip warn">
+    <strong>重要な注意:</strong> README には
+    <em>"This is not an officially supported Google product."</em>
+    と明記されています。<strong>Google 謹製ではあるが公式サポート対象外</strong>の位置づけです。
+    本番運用で使う場合は、この前提を踏まえてバージョンを固定し、自分で再現手順を管理してください。
+  </div>
+
+  <h3>他の「CLI 候補」との違い</h3>
+  <table>
+    <thead>
+      <tr><th>ツール</th><th>立ち位置</th><th>gws との関係</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>gws</strong> (@googleworkspace/cli)</td>
+        <td>Workspace 全サービスの API を薄く CLI ラップ</td>
+        <td>本ページの主役</td>
+      </tr>
+      <tr>
+        <td>GAM / GAMADV-XTD3</td>
+        <td>Workspace <em>管理者</em> 向けの第三者製 CLI</td>
+        <td>別物。ユーザー / 組織の一括管理に特化</td>
+      </tr>
+      <tr>
+        <td>clasp</td>
+        <td>Apps Script のローカル開発 CLI</td>
+        <td>別物。スクリプト開発専用</td>
+      </tr>
+      <tr>
+        <td>gcloud</td>
+        <td>Google Cloud Platform の CLI</td>
+        <td>gws の認証セットアップで併用できる</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>できること</h2>
+
+  <h3>対応サービス（27 種）</h3>
+  <div class="svc-grid">
+    <span class="svc hi">gmail</span>
+    <span class="svc hi">calendar</span>
+    <span class="svc hi">drive</span>
+    <span class="svc hi">docs</span>
+    <span class="svc hi">sheets</span>
+    <span class="svc hi">slides</span>
+    <span class="svc">admin</span>
+    <span class="svc">tasks</span>
+    <span class="svc">keep</span>
+    <span class="svc">people</span>
+    <span class="svc">meet</span>
+    <span class="svc">chat</span>
+    <span class="svc">forms</span>
+    <span class="svc">script</span>
+    <span class="svc">classroom</span>
+    <span class="svc">vault</span>
+    <span class="svc">groups</span>
+    <span class="svc">licensing</span>
+    <span class="svc">reseller</span>
+    <span class="svc">sites</span>
+    <span class="svc">reports</span>
+    <span class="svc">… ほか</span>
+  </div>
+
+  <h3>共通コマンド文法</h3>
+  <p>すべてのサービスに対して、同じ文法で呼べるのが gws の最大の特徴です。</p>
+
+  <div class="syntax-box">
+    <div class="syntax-line">
+      <span class="slot fixed">gws</span>
+      <span class="slot s1">&lt;service&gt;</span>
+      <span class="slot s2">&lt;resource&gt;</span>
+      <span class="slot s3">[subresource]</span>
+      <span class="slot s4">&lt;method&gt;</span>
+      <span class="slot">[flags]</span>
+    </div>
+    <dl class="syntax-legend">
+      <dt class="c1">service</dt><dd>対象サービス名（<code>docs</code>, <code>drive</code>, <code>gmail</code> …）</dd>
+      <dt class="c2">resource</dt><dd>API リソース（<code>documents</code>, <code>files</code>, <code>messages</code> …）</dd>
+      <dt class="c3">subresource</dt><dd>ネストされたリソース（省略可）</dd>
+      <dt class="c4">method</dt><dd>API メソッド（<code>list</code> / <code>get</code> / <code>create</code> / <code>batchUpdate</code> …）</dd>
+    </dl>
+  </div>
+
+  <h3>主要なフラグ</h3>
+  <table>
+    <thead>
+      <tr><th>フラグ</th><th>用途</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="flag-col"><code>--params &lt;JSON&gt;</code></td><td>URL パス / クエリパラメータ（<code>documentId</code> などはここ）</td></tr>
+      <tr><td class="flag-col"><code>--json &lt;JSON&gt;</code></td><td>リクエストボディ（batchUpdate の <code>requests</code> はここ）</td></tr>
+      <tr><td class="flag-col"><code>--format &lt;fmt&gt;</code></td><td>出力形式: <code>json</code> / <code>table</code> / <code>yaml</code> / <code>csv</code></td></tr>
+      <tr><td class="flag-col"><code>--upload &lt;path&gt;</code></td><td>ファイルアップロード時のローカルパス</td></tr>
+      <tr><td class="flag-col"><code>--page-all</code></td><td>ページネーションを自動で全ページ巡回</td></tr>
+    </tbody>
+  </table>
+
+  <h3>特徴</h3>
+  <div class="feature-grid">
+    <div class="feature-card">
+      <div class="ic">🧩</div>
+      <div>
+        <div class="ttl">API Discovery 自動生成</div>
+        <div class="dsc">Google API の Discovery Document からサブコマンドを自動生成するため、公式 API で呼べるメソッドはほぼそのまま使える。</div>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="ic">📦</div>
+      <div>
+        <div class="ttl">構造化出力</div>
+        <div class="dsc">レスポンスは JSON / YAML / CSV / table に切り替え可能。<code>jq</code> やシェルパイプとの相性が良い。</div>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="ic">🔐</div>
+      <div>
+        <div class="ttl">OAuth ログイン内蔵</div>
+        <div class="dsc"><code>gws auth login</code> でブラウザ認可 → 資格情報をローカルに暗号化保存。サービスアカウント運用も可。</div>
+      </div>
+    </div>
+    <div class="feature-card">
+      <div class="ic">📑</div>
+      <div>
+        <div class="ttl">スキーマ確認コマンド</div>
+        <div class="dsc"><code>gws schema &lt;service&gt;.&lt;method&gt;</code> でリクエスト / レスポンスの型をその場で確認できる。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>インストール</h2>
+  <p>Node.js が入っていれば、<strong>npm 1 コマンドで導入完了</strong>です。</p>
+
+<pre><code><span class="cmd">npm</span> install -g @googleworkspace/cli
+<span class="cmd">gws</span> --version      <span class="cmt"># 例: 0.3.4</span>
+</code></pre>
+
+  <div class="tip">
+    <strong>前提:</strong> Node.js は LTS（18 以降）推奨。macOS / Linux なら <code>nvm</code>、Windows なら公式インストーラまたは <code>winget install OpenJS.NodeJS.LTS</code> が手軽です。
+  </div>
+</section>
+
+<section>
+  <h2>初回セットアップ（OAuth 認可）</h2>
+  <p>
+    gws は対象ユーザーとして Google の API を呼ぶため、<strong>OAuth クライアント（デスクトップアプリ）</strong>の発行と認可が必要です。
+    推奨ルートと、<code>gcloud</code> が使えない場合の手動ルートの 2 つがあります。
+  </p>
+
+  <h3>推奨: <code>gws auth setup</code> を使う</h3>
+  <p>
+    Google Cloud プロジェクトの作成・API 有効化・OAuth クライアントの発行までを <strong>gws 自身が面倒を見てくれる</strong>モードです。
+    事前に <code>gcloud</code> CLI がインストール済みで、<code>gcloud auth login</code> も済んでいる必要があります。
+  </p>
+
+<pre><code><span class="cmd">gws</span> auth setup    <span class="cmt"># GCP プロジェクト作成 + API 有効化 + OAuth クライアント発行</span>
+<span class="cmd">gws</span> auth login    <span class="cmt"># 使いたいスコープを選んでブラウザで同意</span>
+</code></pre>
+
+  <h3>手動: Google Cloud Console から作る</h3>
+  <p><code>gcloud</code> を使えない / 使いたくない場合はこちら。</p>
+  <div class="steps">
+    <div class="step-item">
+      <h4>Google Cloud Console でプロジェクトを用意</h4>
+      <p><a href="https://console.cloud.google.com/" target="_blank" rel="noopener">console.cloud.google.com</a> でプロジェクトを選択（または新規作成）。</p>
+    </div>
+    <div class="step-item">
+      <h4>OAuth 同意画面を作る</h4>
+      <p><strong>User Type: External</strong> を選び、<strong>テストモード</strong>のまま、テストユーザーに自分の Google アカウントを追加します（追加を忘れると認可で弾かれる）。</p>
+    </div>
+    <div class="step-item">
+      <h4>OAuth クライアントを発行</h4>
+      <p>Cloud Console 左メニューの <strong>「API とサービス」 → 「認証情報」</strong> に移動します。</p>
+      <div class="menu-path">
+        <span class="part">≡</span>
+        <span class="sep">›</span>
+        <span class="part">API とサービス</span>
+        <span class="sep">›</span>
+        <span class="part final">認証情報</span>
+      </div>
+      <p>
+        ページ上部の「<strong>+ 認証情報を作成</strong>」→「<strong>OAuth クライアント ID</strong>」を選択。
+        アプリケーションの種類で <strong>デスクトップ アプリ (Desktop app)</strong> を選び、名前を付けて「作成」を押します。
+      </p>
+      <p>
+        発行されたクライアントの行にある <strong>JSON をダウンロード</strong> ボタンから認証情報ファイルを取得し、
+        <code>~/.config/gws/client_secret.json</code> に配置します。
+      </p>
+      <div class="tip">
+        <strong>直接 URL:</strong> メニューから辿れない場合は
+        <code>https://console.cloud.google.com/apis/credentials?project=PROJECT_ID</code>
+        を開けば「認証情報」ページに直接行けます。
+      </div>
+    </div>
+    <div class="step-item">
+      <h4>必要な API を有効化</h4>
+      <p>使うサービスの API を Cloud Console から ON にします。<code>gcloud</code> があるなら一括で：</p>
+<pre><code><span class="cmd">gcloud</span> services enable <span class="str">\
+  docs.googleapis.com \
+  drive.googleapis.com \
+  sheets.googleapis.com \
+  gmail.googleapis.com \
+  calendar-json.googleapis.com \
+  slides.googleapis.com</span>
+</code></pre>
+    </div>
+    <div class="step-item">
+      <h4>ログインしてスコープを選ぶ</h4>
+<pre><code><span class="cmd">gws</span> auth login -s docs,drive,sheets
+</code></pre>
+      <p>ブラウザが開き、Google アカウントで同意すると資格情報がローカルに保存されます。</p>
+    </div>
+  </div>
+
+  <div class="tip warn">
+    <strong>スコープ数の上限:</strong> テストモード（未検証アプリ）では 1 アプリにつき
+    <strong>約 25 スコープまで</strong>という制限があります。使うサービスのスコープだけを <code>-s</code> で指定してください。
+  </div>
+
+  <h3>認証情報の優先順位</h3>
+  <table>
+    <thead>
+      <tr><th>優先度</th><th>ソース</th><th>環境変数 / ファイル</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>アクセストークン直指定</td><td><code>GOOGLE_WORKSPACE_CLI_TOKEN</code></td></tr>
+      <tr><td>2</td><td>資格情報ファイル指定</td><td><code>GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE</code></td></tr>
+      <tr><td>3</td><td>暗号化保存済みトークン</td><td><code>gws auth login</code> が保存したもの</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2><code>gcloud services</code> で API を管理する</h2>
+  <p>
+    <code>gws</code> は裏で Google の各種 API（<code>docs.googleapis.com</code> / <code>drive.googleapis.com</code> など）を叩いています。
+    これらは使う前に <strong>GCP プロジェクト単位で「有効化」</strong>しておく必要があり、
+    その有効化 / 無効化 / 確認を一括で行えるのが <code>gcloud services</code> サブコマンドです。
+  </p>
+
+  <div class="tip">
+    <strong>用語の整理:</strong>
+    Google Cloud 上で「API」と呼ばれるものは内部的に <strong>service</strong> という単位で管理されています。
+    だから有効化コマンドは <code>gcloud apis …</code> ではなく <code>gcloud services …</code> です。
+  </div>
+
+  <h3>API の有効化: <code>gcloud services enable</code></h3>
+  <p>指定したプロジェクトで API を有効化します。スペース区切りで<strong>複数同時有効化</strong>が可能。</p>
+<pre><code><span class="cmt"># 単一 API を有効化（現在アクティブなプロジェクトに対して）</span>
+<span class="cmd">gcloud</span> services enable docs.googleapis.com
+
+<span class="cmt"># 複数 API を一括で有効化（Workspace CLI でよく使う組み合わせ）</span>
+<span class="cmd">gcloud</span> services enable <span class="str">\
+  docs.googleapis.com \
+  drive.googleapis.com \
+  sheets.googleapis.com \
+  gmail.googleapis.com \
+  calendar-json.googleapis.com \
+  slides.googleapis.com</span>
+
+<span class="cmt"># プロジェクトを明示指定</span>
+<span class="cmd">gcloud</span> services enable docs.googleapis.com --project=PROJECT_ID
+</code></pre>
+  <div class="tip warn">
+    <strong>有効化には数十秒かかる:</strong> 裏側で Service Usage API に非同期ジョブが走るため、
+    <code>gcloud services enable</code> が完了した直後に API を叩くと <code>PERMISSION_DENIED</code> / <code>SERVICE_DISABLED</code> が返ることがあります。
+    少し待つか、次節の <code>services list --enabled</code> で実際に有効化されたか確認してから実行してください。
+  </div>
+
+  <h3>有効化されている API の確認: <code>gcloud services list --enabled</code></h3>
+  <p>現在のプロジェクトで<strong>すでに有効化されている</strong> API 一覧を表示します。</p>
+<pre><code><span class="cmt"># 有効化済みの API 一覧</span>
+<span class="cmd">gcloud</span> services list --enabled
+
+<span class="cmt"># 例: 出力（抜粋）</span>
+<span class="cmt"># NAME                                 TITLE</span>
+<span class="cmt"># docs.googleapis.com                  Google Docs API</span>
+<span class="cmt"># drive.googleapis.com                 Google Drive API</span>
+<span class="cmt"># sheets.googleapis.com                Google Sheets API</span>
+
+<span class="cmt"># 特定の API が有効か素早く調べる（grep）</span>
+<span class="cmd">gcloud</span> services list --enabled | <span class="cmd">grep</span> docs
+
+<span class="cmt"># Workspace 関連だけ抽出（PowerShell の場合）</span>
+<span class="cmd">gcloud</span> services list --enabled | <span class="cmd">Select-String</span> <span class="str">'docs|drive|sheets|gmail|calendar|slides'</span>
+
+<span class="cmt"># CSV / JSON で取り出す（スクリプトで扱いやすい）</span>
+<span class="cmd">gcloud</span> services list --enabled --format=<span class="str">"value(config.name)"</span>
+<span class="cmd">gcloud</span> services list --enabled --format=json
+</code></pre>
+
+  <h3>すべての API（有効化可能なもの）を確認: <code>gcloud services list --available</code></h3>
+  <p>そのプロジェクトで<strong>有効化可能な全 API</strong>の一覧です。数が多いので絞り込みが前提になります。</p>
+<pre><code><span class="cmt"># 全 API 一覧（数百件出るので注意）</span>
+<span class="cmd">gcloud</span> services list --available
+
+<span class="cmt"># 「docs」を含む API だけに絞る（--filter 推奨）</span>
+<span class="cmd">gcloud</span> services list --available --filter=<span class="str">"name:docs"</span>
+
+<span class="cmt"># Workspace 系 API をまとめて検索</span>
+<span class="cmd">gcloud</span> services list --available <span class="str">\
+  --filter=<span class="str">"name:(docs OR drive OR sheets OR gmail OR calendar OR slides)"</span></span>
+
+<span class="cmt"># タイトルで検索（表示名に「Workspace」が入るもの）</span>
+<span class="cmd">gcloud</span> services list --available --filter=<span class="str">"title:Workspace"</span>
+</code></pre>
+  <div class="tip">
+    <strong>--enabled と --available の違い:</strong>
+    <ul style="margin: 6px 0 0 1.2em;">
+      <li><code>--enabled</code>: すでに有効化されている API（＝このプロジェクトで呼び出せる API）</li>
+      <li><code>--available</code>: このプロジェクトで<strong>有効化できる</strong> API 全体（組織ポリシーで制限されていないもの）</li>
+    </ul>
+  </div>
+
+  <h3>API の無効化: <code>gcloud services disable</code></h3>
+  <p>使わなくなった API を無効化します。不要な API が有効なままだと攻撃面の広がりやクォータ管理の煩雑化につながるので、整理したいときに。</p>
+<pre><code><span class="cmt"># 単一 API を無効化</span>
+<span class="cmd">gcloud</span> services disable docs.googleapis.com
+
+<span class="cmt"># 依存されていても強制的に無効化（推移的に依存 API も止まる）</span>
+<span class="cmd">gcloud</span> services disable docs.googleapis.com --force
+
+<span class="cmt"># プロジェクトを明示指定</span>
+<span class="cmd">gcloud</span> services disable docs.googleapis.com --project=PROJECT_ID
+</code></pre>
+  <div class="tip danger">
+    <strong>⚠ 無効化の影響:</strong>
+    <ul style="margin: 6px 0 0 1.2em;">
+      <li>無効化した瞬間から、その API へのリクエストはすべて <code>403 SERVICE_DISABLED</code></li>
+      <li>他の有効な API から<strong>依存されている</strong>場合、<code>--force</code> を付けないと無効化は失敗する</li>
+      <li><code>--force</code> を付けると依存 API も止まり、連鎖的に壊れる可能性がある — 本番プロジェクトでは事前に依存を確認</li>
+    </ul>
+  </div>
+
+  <h3>よく使うフラグ一覧</h3>
+  <table>
+    <thead>
+      <tr><th>フラグ</th><th>意味</th><th>使いどころ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="nowrap"><code>--project=ID</code></td>
+        <td>対象プロジェクトを指定</td>
+        <td>複数プロジェクトを触っているとき。指定しないと <code>gcloud config</code> のデフォルトが使われる</td>
+      </tr>
+      <tr>
+        <td class="nowrap"><code>--filter="name:…"</code></td>
+        <td>名前で絞り込み</td>
+        <td><code>--available</code> の結果を grep 相当で絞るときの標準手段</td>
+      </tr>
+      <tr>
+        <td class="nowrap"><code>--format=…</code></td>
+        <td>出力形式を指定</td>
+        <td><code>value(config.name)</code> / <code>json</code> / <code>yaml</code> / <code>csv</code>。スクリプトで使うなら必須</td>
+      </tr>
+      <tr>
+        <td class="nowrap"><code>--force</code></td>
+        <td>依存を無視して無効化</td>
+        <td><code>disable</code> 専用。依存エラーを回避したいときだけ使う</td>
+      </tr>
+      <tr>
+        <td class="nowrap"><code>--async</code></td>
+        <td>非同期実行</td>
+        <td><code>enable</code> / <code>disable</code> 時に待たずに即座に制御を戻す</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Workspace CLI で必要になる典型 API</h3>
+  <p>用途に応じてまとめて有効化しておくと楽です。</p>
+  <table>
+    <thead>
+      <tr><th>用途</th><th>API（service 名）</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Google ドキュメント操作</td><td><code>docs.googleapis.com</code></td></tr>
+      <tr><td>Drive のファイル / 共有</td><td><code>drive.googleapis.com</code></td></tr>
+      <tr><td>スプレッドシート</td><td><code>sheets.googleapis.com</code></td></tr>
+      <tr><td>Gmail 操作</td><td><code>gmail.googleapis.com</code></td></tr>
+      <tr><td>Google カレンダー</td><td><code>calendar-json.googleapis.com</code></td></tr>
+      <tr><td>Google スライド</td><td><code>slides.googleapis.com</code></td></tr>
+      <tr><td>Admin SDK（ユーザー / グループ管理）</td><td><code>admin.googleapis.com</code></td></tr>
+      <tr><td>People API（連絡先）</td><td><code>people.googleapis.com</code></td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip">
+    <strong>セットアップ手順（初回 1 回）:</strong>
+<pre style="margin: 8px 0 0;"><code><span class="cmt"># 1. 対象プロジェクトを選ぶ</span>
+<span class="cmd">gcloud</span> config set project PROJECT_ID
+
+<span class="cmt"># 2. 使う API をまとめて有効化</span>
+<span class="cmd">gcloud</span> services enable <span class="str">\
+  docs.googleapis.com drive.googleapis.com sheets.googleapis.com \
+  gmail.googleapis.com calendar-json.googleapis.com slides.googleapis.com</span>
+
+<span class="cmt"># 3. 反映を確認</span>
+<span class="cmd">gcloud</span> services list --enabled --filter=<span class="str">"name:(docs OR drive OR sheets OR gmail OR calendar OR slides)"</span></code></pre>
+  </div>
+</section>
+
+<section>
+  <h2>すぐ使えるコマンド例</h2>
+
+  <h3>Drive のファイル一覧</h3>
+<pre><code><span class="cmd">gws</span> drive files list --params <span class="str">'{"pageSize": 5}'</span>
+</code></pre>
+
+  <h3>Gmail のメッセージ一覧</h3>
+<pre><code><span class="cmd">gws</span> gmail users messages list --params <span class="str">'{"userId": "me"}'</span>
+</code></pre>
+
+  <h3>自分の情報（疎通確認に便利）</h3>
+<pre><code><span class="cmd">gws</span> people people get --params <span class="str">'{"resourceName": "people/me", "personFields": "names,emailAddresses"}'</span>
+</code></pre>
+
+  <h3>ページネーションを自動で全件回す</h3>
+<pre><code><span class="cmd">gws</span> drive files list --page-all --format json <span class="key">|</span> <span class="cmd">jq</span> <span class="str">'.files | length'</span>
+</code></pre>
+</section>
+
+<section>
+  <h2>Google ドキュメントを CLI から編集する</h2>
+
+  <h3>処理の流れ</h3>
+  <div class="flow">
+    <div class="flow-node you">
+      <div class="icon">🧑‍💻</div>
+      <div class="title">ターミナル</div>
+      <div class="sub">あなたが gws を叩く</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node cli">
+      <div class="icon">⚙️</div>
+      <div class="title">gws</div>
+      <div class="sub">OAuth 済みトークンを付与</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node api">
+      <div class="icon">🔌</div>
+      <div class="title">Docs API</div>
+      <div class="sub">documents.batchUpdate</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-node docs">
+      <div class="icon">📄</div>
+      <div class="title">ドキュメント</div>
+      <div class="sub">本文が更新される</div>
+    </div>
+  </div>
+
+  <h3>方法 A: ヘルパー <code>gws docs +write</code></h3>
+  <p>
+    gws には Docs 向けに <strong>内蔵ヘルパー</strong>が用意されています。<code>+</code> プレフィックスの付くコマンドは、生の API を呼び出すのではなく、よく使う操作を 1 コマンドにまとめたものです。
+    単純に「本文にテキストを追記したい」だけならこれが最短です。
+  </p>
+<pre><code><span class="cmd">gws</span> docs +write --help   <span class="cmt"># 受け付けるオプションを確認</span>
+</code></pre>
+
+  <h3>方法 B: <code>documents.batchUpdate</code> を直接呼ぶ</h3>
+  <p>
+    本格的な編集は、Docs API の <code>batchUpdate</code> エンドポイントに <strong>リクエスト配列</strong>を渡します。
+    gws では <code>--params</code> に <code>documentId</code>、<code>--json</code> に <code>{ "requests": [...] }</code> を渡す形になります。
+  </p>
+
+  <h4>冒頭にテキストを挿入</h4>
+<pre><code><span class="cmd">gws</span> docs documents batchUpdate <span class="str">\
+  --params '{"documentId": "YOUR_DOC_ID"}' \
+  --json '{
+    "requests": [
+      {
+        "insertText": {
+          "location": { "index": 1 },
+          "text":     "2026-04-18 自動追記: ビルド成功\n"
+        }
+      }
+    ]
+  }'</span>
+</code></pre>
+
+  <h4>テンプレ変数を一括置換</h4>
+<pre><code><span class="cmd">gws</span> docs documents batchUpdate <span class="str">\
+  --params '{"documentId": "YOUR_DOC_ID"}' \
+  --json '{
+    "requests": [
+      {"replaceAllText": {
+        "containsText": {"text": "{{client}}", "matchCase": true},
+        "replaceText":  "株式会社サンプル"
+      }},
+      {"replaceAllText": {
+        "containsText": {"text": "{{date}}", "matchCase": true},
+        "replaceText":  "2026-04-18"
+      }}
+    ]
+  }'</span>
+</code></pre>
+
+  <h4>ドキュメントの現在の中身を取得</h4>
+<pre><code><span class="cmd">gws</span> docs documents get --params <span class="str">'{"documentId": "YOUR_DOC_ID"}'</span> --format json
+</code></pre>
+
+  <h4>空のドキュメントを作成</h4>
+<pre><code><span class="cmd">gws</span> docs documents create --json <span class="str">'{"title": "議事録 2026-04"}'</span>
+</code></pre>
+
+  <h3>よく使う <code>batchUpdate</code> リクエスト種別</h3>
+  <table>
+    <thead>
+      <tr><th>リクエスト</th><th>用途</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>insertText</code></td><td>指定 index にテキストを挿入</td></tr>
+      <tr><td><code>deleteContentRange</code></td><td>範囲を削除</td></tr>
+      <tr><td><code>replaceAllText</code></td><td>文字列の一括置換（テンプレ差し込み）</td></tr>
+      <tr><td><code>insertTable</code></td><td>表を挿入</td></tr>
+      <tr><td><code>insertInlineImage</code></td><td>画像を本文に埋め込み</td></tr>
+      <tr><td><code>updateParagraphStyle</code></td><td>見出しレベル・配置・行間</td></tr>
+      <tr><td><code>updateTextStyle</code></td><td>太字 / 斜体 / リンク / 色</td></tr>
+      <tr><td><code>createParagraphBullets</code></td><td>箇条書きにする</td></tr>
+    </tbody>
+  </table>
+
+  <div class="tip">
+    <strong>スキーマ確認:</strong> 使えるリクエストが多くて迷うときは
+    <code>gws schema docs.documents.batchUpdate</code>
+    でリクエストの型定義をその場で吐き出せます。公式リファレンスを開かずに CLI 内で完結できるのが gws の便利なところです。
+  </div>
+</section>
+
+<section>
+  <h2>実運用レシピ</h2>
+
+  <h3>テンプレ差し込みで契約書を量産</h3>
+  <ol>
+    <li><code>gws drive files copy</code> でテンプレ Doc を複製して <code>fileId</code> を得る</li>
+    <li><code>gws docs documents batchUpdate</code> + <code>replaceAllText</code> で <code>{{client}}</code> / <code>{{date}}</code> 等を埋める</li>
+    <li><code>gws drive permissions create</code> で先方メールに閲覧権限を付与</li>
+  </ol>
+
+  <h3>CI から日次レポートを書き込む</h3>
+  <ol>
+    <li>サービスアカウントを発行し、対象 Doc にそのメールアドレスで編集権を付与</li>
+    <li>環境変数 <code>GOOGLE_WORKSPACE_CLI_CREDENTIALS_FILE</code> にサービスアカウント鍵パスを指定</li>
+    <li>CI で <code>gws docs documents batchUpdate</code> を叩く</li>
+  </ol>
+
+  <div class="tip danger">
+    <strong>鍵の扱い:</strong> OAuth トークン / サービスアカウント鍵は「対象ドキュメントの編集権」そのものです。
+    <code>~/.config/gws/</code> や鍵 JSON を<strong>絶対に Git にコミットしない</strong>、CI では秘匿変数に入れる、を徹底してください。
+  </div>
+</section>
+
+<section>
+  <h2>まとめ</h2>
+  <ul>
+    <li>「Google Workspace CLI」とは <strong><code>@googleworkspace/cli</code>（<code>gws</code>）</strong>のこと。Google 謹製だが<strong>公式サポート外</strong>。</li>
+    <li>インストールは <code>npm install -g @googleworkspace/cli</code> の 1 行、初期化は <code>gws auth setup</code> → <code>gws auth login</code>。</li>
+    <li>全サービスで共通の文法 <code>gws &lt;service&gt; &lt;resource&gt; &lt;method&gt; --params ... --json ...</code> で呼べる。</li>
+    <li>Google ドキュメントの編集は <code>gws docs +write</code>（簡易）か <code>gws docs documents batchUpdate</code>（本格）。</li>
+    <li><code>replaceAllText</code> によるテンプレ差し込みが、もっとも実用度が高い定番パターン。</li>
+  </ul>
+  <p>
+    詳しい情報源:
+    <a href="https://github.com/googleworkspace/cli" target="_blank" rel="noopener">github.com/googleworkspace/cli</a>
+    ／
+    <a href="https://zenn.dev/emuni/articles/gws-cli-practical-guide" target="_blank" rel="noopener">Zenn「Google Workspace CLI 実践ガイド」(emuni 氏)</a>
+  </p>
+</section>
+
+</div>
+</body>
+</html>

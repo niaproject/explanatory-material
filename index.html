@@ -20,6 +20,9 @@
       --cat-git: #f97316;
       --cat-hosting: #a855f7;
       --cat-vscode: #007acc;
+      --cat-google: #4285f4;
+      --cat-gcp: #ea4335;
+      --cat-claude: #da7756;
     }
 
     * {
@@ -195,6 +198,9 @@
     .cat-chip.git { background: rgba(249, 115, 22, 0.15); color: var(--cat-git); border: 1px solid rgba(249, 115, 22, 0.3); }
     .cat-chip.hosting { background: rgba(168, 85, 247, 0.15); color: var(--cat-hosting); border: 1px solid rgba(168, 85, 247, 0.3); }
     .cat-chip.vscode { background: rgba(0, 122, 204, 0.15); color: var(--cat-vscode); border: 1px solid rgba(0, 122, 204, 0.3); }
+    .cat-chip.google { background: rgba(66, 133, 244, 0.15); color: var(--cat-google); border: 1px solid rgba(66, 133, 244, 0.3); }
+    .cat-chip.gcp { background: rgba(234, 67, 53, 0.15); color: var(--cat-gcp); border: 1px solid rgba(234, 67, 53, 0.3); }
+    .cat-chip.claude { background: rgba(218, 119, 86, 0.15); color: var(--cat-claude); border: 1px solid rgba(218, 119, 86, 0.3); }
     .update-title {
       font-weight: 500;
       font-size: 0.98rem;
@@ -236,6 +242,9 @@
     .cat-card[data-cat="git"]:hover { border-color: var(--cat-git); }
     .cat-card[data-cat="hosting"]:hover { border-color: var(--cat-hosting); }
     .cat-card[data-cat="vscode"]:hover { border-color: var(--cat-vscode); }
+    .cat-card[data-cat="google"]:hover { border-color: var(--cat-google); }
+    .cat-card[data-cat="gcp"]:hover { border-color: var(--cat-gcp); }
+    .cat-card[data-cat="claude"]:hover { border-color: var(--cat-claude); }
     .cat-card .cat-icon { font-size: 2.4rem; margin-bottom: 0.75rem; }
     .cat-card .cat-name {
       font-size: 1.2rem;
@@ -406,10 +415,53 @@
         icon: "💻",
         desc: "VSCode の使い方・ショートカット・Tips",
       },
+      google: {
+        name: "Google Workspace",
+        icon: "🟦",
+        desc: "Google Workspace 周辺ツール・CLI・自動化",
+      },
+      gcp: {
+        name: "Google Cloud",
+        icon: "☁️",
+        desc: "Google Cloud Platform の運用・管理 Tips",
+      },
+      claude: {
+        name: "Claude Code",
+        icon: "🤖",
+        desc: "Claude Code の権限モード・運用のコツ",
+      },
     };
 
     // updated は YYYY-MM-DD HH:mm:ss (ローカル時刻) でソート精度を秒まで確保
     const PAGES = [
+      {
+        title: "Claude Code の自動モード vs バイパス権限モード",
+        desc: "acceptEdits（編集のみ自動承認）と bypassPermissions（全ツール確認スキップ）の違い、Shift+Tab での切替、--dangerously-skip-permissions の危険性、ユースケース別の使い分けまで。",
+        url: "topics/claude/claude-permission-modes.html",
+        category: "claude",
+        updated: "2026-04-19 10:30:00",
+      },
+      {
+        title: "gcloud CLI のインストール方法",
+        desc: "Windows / macOS / Linux 別の推奨手順（インストーラ / Homebrew / apt / dnf / snap / アーカイブ）、gcloud init の実行フローと内部挙動、PowerShell で PATH を手動追加する方法、ADC の初期セットアップ、コンポーネント追加・更新・アンインストールまで。",
+        url: "topics/gcp/gcloud-install.html",
+        category: "gcp",
+        updated: "2026-04-18 23:28:00",
+      },
+      {
+        title: "Google Cloud プロジェクトのシャットダウン",
+        desc: "「シャットダウン」の挙動（30 日猶予・停止されるもの / 残るもの）、Console / gcloud / gws の 3 経路、設定ページへの辿り方まで。",
+        url: "topics/gcp/gcp-project-shutdown.html",
+        category: "gcp",
+        updated: "2026-04-18 22:50:27",
+      },
+      {
+        title: "Google Workspace CLI (gws) 入門",
+        desc: "Google 謹製の npm 製 CLI @googleworkspace/cli。インストール、OAuth セットアップ、gcloud services による API 有効化 / 無効化 / 一覧確認、documents.batchUpdate で Google ドキュメントを編集する具体例まで。",
+        url: "topics/google-workspace/google-workspace-cli.html",
+        category: "google",
+        updated: "2026-04-19 08:15:00",
+      },
       {
         title: "git add の取り消し方",
         desc: "ステージングしたファイルを特定だけ安全に取り消す手順を図解。",
