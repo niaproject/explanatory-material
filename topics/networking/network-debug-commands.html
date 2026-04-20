@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>conntrack -L / ovs-ofctl dump-flows / ovn-trace の使い分け | ネットワーク解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --ovn-blue: #326ce5;
+    --ovs-green: #00a99d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #15243d 0%, #0b1a24 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -10%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(50, 108, 229, 0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header::after {
+    content: "";
+    position: absolute;
+    top: -30%;
+    right: -10%;
+    width: 55%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(0, 169, 157, 0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header h1 {
+    font-size: 2.0rem;
+    background: linear-gradient(90deg, var(--ovn-blue), var(--ovs-green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative;
+    line-height: 1.3;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; position: relative; }
+  .net-logo {
+    display: inline-flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .net-logo span {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .net-logo span:nth-child(1) { background: var(--orange); }
+  .net-logo span:nth-child(2) { background: var(--ovs-green); }
+  .net-logo span:nth-child(3) { background: var(--ovn-blue); }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  h4 { font-size: 1.02rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+  .grn { color: var(--green); }
+
+  /* カード */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 14px 0;
+  }
+  .card.ct  { border-top: 3px solid var(--orange); }
+  .card.ovs { border-top: 3px solid var(--ovs-green); }
+  .card.ovn { border-top: 3px solid var(--ovn-blue); }
+  .card h4 { margin-top: 0; }
+
+  /* Tips */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn   { background: rgba(240, 136, 62, 0.08); border-left-color: var(--orange); }
+  .tip.danger { background: rgba(248, 81, 73, 0.08);  border-left-color: var(--red); }
+  .tip.ok     { background: rgba(63, 185, 80, 0.08);  border-left-color: var(--green); }
+  .tip strong         { color: var(--accent); }
+  .tip.warn strong    { color: var(--orange); }
+  .tip.danger strong  { color: var(--red); }
+  .tip.ok strong      { color: var(--green); }
+
+  /* TL;DR */
+  .tldr {
+    background: linear-gradient(135deg, rgba(240, 136, 62, 0.1), rgba(0, 169, 157, 0.08), rgba(50, 108, 229, 0.1));
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--orange);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 16px 0 24px;
+  }
+  .tldr h3 { margin-top: 0; color: var(--orange); }
+  .tldr p { margin-bottom: 8px; }
+  .tldr p:last-child { margin-bottom: 0; }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0 20px;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: top;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.nowrap { white-space: nowrap; width: 1%; }
+
+  table.compare th.col-ct  { color: var(--orange); }
+  table.compare th.col-ovs { color: var(--ovs-green); }
+  table.compare th.col-ovn { color: var(--ovn-blue); }
+  table.compare td.col-ct  { background: rgba(240, 136, 62, 0.05); }
+  table.compare td.col-ovs { background: rgba(0, 169, 157, 0.05); }
+  table.compare td.col-ovn { background: rgba(50, 108, 229, 0.05); }
+  table.compare td.aspect  { font-weight: 600; color: var(--text); white-space: nowrap; }
+
+  /* グリッド */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+  }
+
+  /* レイヤ図 */
+  .layer-fig {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    margin: 16px 0;
+  }
+  .layer-row {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .layer-row:last-child { border-bottom: none; }
+  .layer-name {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    font-weight: 600;
+    text-align: right;
+  }
+  .layer-name.ct     { color: var(--orange); }
+  .layer-name.ovs    { color: var(--ovs-green); }
+  .layer-name.ovn    { color: var(--ovn-blue); }
+  .layer-name.kernel { color: var(--purple); }
+  .layer-body {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.9rem;
+  }
+  .layer-body.ct     { border-left: 3px solid var(--orange); }
+  .layer-body.ovs    { border-left: 3px solid var(--ovs-green); }
+  .layer-body.ovn    { border-left: 3px solid var(--ovn-blue); }
+  .layer-body.kernel { border-left: 3px solid var(--purple); }
+
+  /* ステップ */
+  .steps { counter-reset: step-counter; margin: 16px 0; }
+  .step {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 22px 16px 64px;
+    margin-bottom: 12px;
+    position: relative;
+    counter-increment: step-counter;
+  }
+  .step::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 18px;
+    top: 16px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--orange), var(--ovn-blue));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.88rem;
+  }
+  .step h4 { font-size: 1rem; margin-bottom: 6px; }
+
+  /* フィールド分解表 */
+  .fields {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.86rem;
+    line-height: 1.9;
+  }
+  .fields .field-line { color: var(--muted); }
+  .fields .field-line strong { color: var(--text); font-weight: 600; }
+  .fields .fhl-cmd    { color: var(--accent); }
+  .fields .fhl-proto  { color: var(--orange); }
+  .fields .fhl-ip     { color: var(--green); }
+  .fields .fhl-port   { color: var(--yellow); }
+  .fields .fhl-state  { color: var(--purple); }
+  .fields .fhl-action { color: var(--ovn-blue); }
+  .fields .fhl-match  { color: var(--ovs-green); }
+
+  /* 参考リンク */
+  .links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .links a {
+    display: block;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .links a:hover {
+    border-color: var(--accent);
+    transform: translateX(4px);
+  }
+  .links a .desc {
+    display: block;
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin-top: 2px;
+  }
+
+  /* コマンド比較カード */
+  .cmd-hero {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+    gap: 14px;
+    margin: 16px 0 24px;
+  }
+  .cmd-hero .item {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+  }
+  .cmd-hero .item.ct  { border-top: 4px solid var(--orange); }
+  .cmd-hero .item.ovs { border-top: 4px solid var(--ovs-green); }
+  .cmd-hero .item.ovn { border-top: 4px solid var(--ovn-blue); }
+  .cmd-hero .item h4 {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 1rem;
+    margin: 0 0 4px;
+  }
+  .cmd-hero .item.ct  h4 { color: var(--orange); }
+  .cmd-hero .item.ovs h4 { color: var(--ovs-green); }
+  .cmd-hero .item.ovn h4 { color: var(--ovn-blue); }
+  .cmd-hero .item .lead { color: var(--muted); font-size: 0.85rem; margin-bottom: 10px; }
+  .cmd-hero .item .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .cmd-hero .item .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 10px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+    background: var(--panel-2);
+    color: var(--muted);
+    border: 1px solid var(--border);
+  }
+
+  @media (max-width: 768px) {
+    header h1 { font-size: 1.45rem; }
+    th, td { padding: 10px 12px; font-size: 0.85rem; }
+    .layer-row { grid-template-columns: 1fr; }
+    .layer-name { text-align: left; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / ネットワーク / conntrack -L / ovs-ofctl dump-flows / ovn-trace の使い分け
+</div>
+
+<header>
+  <div class="net-logo"><span></span><span></span><span></span></div>
+  <h1>conntrack -L / ovs-ofctl dump-flows / ovn-trace</h1>
+  <p>3 つの主要デバッグコマンドが「どのレイヤを覗くのか」を整理する</p>
+</header>
+
+<section>
+  <h2>このページの結論（TL;DR）</h2>
+  <div class="tldr">
+    <h3>どのコマンドを、いつ使うか</h3>
+    <p><strong><code>conntrack -L</code></strong> は <strong>Linux カーネル</strong>の接続追跡テーブルを見るコマンド。「NAT / ステートフル FW が実際にどの接続を保持しているか」を知りたいときに使う。</p>
+    <p><strong><code>ovs-ofctl dump-flows</code></strong> は <strong>OVS の OpenFlow フローテーブル</strong>を表示するコマンド。「各パケットがどのルールにマッチして、どのカウンタが増えているか」を知りたいときに使う。</p>
+    <p><strong><code>ovn-trace</code></strong> は <strong>OVN の論理フロー</strong>上で仮想パケットをシミュレーションするコマンド。「実際に流さずに、このパケットは論理的にどう処理されるか」を知りたいときに使う。</p>
+  </div>
+
+  <div class="cmd-hero">
+    <div class="item ct">
+      <h4>conntrack -L</h4>
+      <div class="lead">Linux kernel の接続状態を覗く</div>
+      <div class="tags">
+        <span class="tag">kernel</span>
+        <span class="tag">nf_conntrack</span>
+        <span class="tag">実測値</span>
+      </div>
+    </div>
+    <div class="item ovs">
+      <h4>ovs-ofctl dump-flows</h4>
+      <div class="lead">OpenFlow フローと統計カウンタを覗く</div>
+      <div class="tags">
+        <span class="tag">OVS</span>
+        <span class="tag">OpenFlow</span>
+        <span class="tag">実測値</span>
+      </div>
+    </div>
+    <div class="item ovn">
+      <h4>ovn-trace</h4>
+      <div class="lead">論理ネットの通過経路をシミュレート</div>
+      <div class="tags">
+        <span class="tag">OVN</span>
+        <span class="tag">Logical Flow</span>
+        <span class="tag">ドライラン</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>3 コマンドが覗いている「レイヤ」の違い</h2>
+  <p>同じネットワーク問題でも、どのレイヤが怪しいかで使うコマンドが変わります。下図の通り、OVN / OVS / Linux kernel それぞれ別のデータ源を持っているため、適切な層を選ばないと「正しい答えが見えない」状況になります。</p>
+  <div class="layer-fig">
+    <div class="layer-row">
+      <div class="layer-name ovn">OVN<br>（論理）</div>
+      <div class="layer-body ovn">
+        NB DB の論理設定 → Logical Flow（SB DB）<br>
+        <code>ovn-trace</code> はここを<strong>シミュレート</strong>して「論理的にどう流れるか」を答える
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name ovs">OVS<br>（物理フロー）</div>
+      <div class="layer-body ovs">
+        ovs-vswitchd が保持する OpenFlow テーブル（ovn-controller が書き込む）<br>
+        <code>ovs-ofctl dump-flows</code> は<strong>実際に流れた回数・バイト数</strong>までカウンタ付きで返す
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name kernel">Kernel<br>（接続状態）</div>
+      <div class="layer-body kernel">
+        Linux netfilter の <code>nf_conntrack</code> テーブル（5 タプル + 状態）<br>
+        OVS の <code>ct()</code> アクション経由で書き込まれる
+      </div>
+    </div>
+    <div class="layer-row">
+      <div class="layer-name ct">Tool</div>
+      <div class="layer-body ct">
+        <code>conntrack -L</code> は上記カーネルテーブルを<strong>テキスト出力</strong>する
+      </div>
+    </div>
+  </div>
+
+  <h3>比較表</h3>
+  <table class="compare">
+    <thead>
+      <tr>
+        <th>観点</th>
+        <th class="col-ct">conntrack -L</th>
+        <th class="col-ovs">ovs-ofctl dump-flows</th>
+        <th class="col-ovn">ovn-trace</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="aspect">対象レイヤ</td>
+        <td class="col-ct">Linux kernel (netfilter)</td>
+        <td class="col-ovs">OVS (OpenFlow テーブル)</td>
+        <td class="col-ovn">OVN (論理ネットワーク)</td>
+      </tr>
+      <tr>
+        <td class="aspect">情報源</td>
+        <td class="col-ct"><code>/proc/net/nf_conntrack</code></td>
+        <td class="col-ovs">ovs-vswitchd（OpenFlow）</td>
+        <td class="col-ovn">OVN NB/SB DB</td>
+      </tr>
+      <tr>
+        <td class="aspect">実測 / シミュレーション</td>
+        <td class="col-ct">実測（現時点のエントリ）</td>
+        <td class="col-ovs">実測（マッチ回数カウンタ付き）</td>
+        <td class="col-ovn">シミュレーション（ドライラン）</td>
+      </tr>
+      <tr>
+        <td class="aspect">主な調べ対象</td>
+        <td class="col-ct">
+          接続の有無・NAT 変換・state<br>
+          (NEW/ESTABLISHED/RELATED/INVALID)
+        </td>
+        <td class="col-ovs">
+          どのフローでドロップ / 転送しているか<br>
+          カウンタ未増加 = 到達していない
+        </td>
+        <td class="col-ovn">
+          ACL で落としているか、正しいポートに<br>
+          出ていくか、どのパイプラインを通るか
+        </td>
+      </tr>
+      <tr>
+        <td class="aspect">実行タイミング</td>
+        <td class="col-ct">事後（既に通信したあと）</td>
+        <td class="col-ovs">事後（パケット通過後のカウンタ差分）</td>
+        <td class="col-ovn">事前 or 事後どちらでも可</td>
+      </tr>
+      <tr>
+        <td class="aspect">代表的に分かる問題</td>
+        <td class="col-ct">
+          NAT が効いていない<br>
+          conntrack table full
+        </td>
+        <td class="col-ovs">
+          フロー自体が配布されていない<br>
+          priority が違って別フローにマッチ
+        </td>
+        <td class="col-ovn">
+          ACL（Security Group）でブロック<br>
+          論理ルータのルートが不足
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ==================== conntrack -L ==================== -->
+<section>
+  <h2>1. <code>conntrack -L</code> — Linux カーネルの接続追跡を覗く</h2>
+
+  <div class="card ct">
+    <h4>目的</h4>
+    <p>
+      Linux カーネルの <code>nf_conntrack</code> モジュールが保持している
+      <strong>接続トラッキングテーブル</strong>のスナップショットを表示します。
+      ステートフルファイアウォール・NAT・Load Balancer の「今どの接続を覚えているか」が分かります。
+    </p>
+    <p>パッケージ: <code>conntrack-tools</code>（Debian/Ubuntu: <code>apt install conntrack</code>、RHEL 系: <code>dnf install conntrack-tools</code>）。root 権限が必要です。</p>
+  </div>
+
+  <h3>基本形と出力フォーマット</h3>
+  <pre><code><span class="cmt"># 全エントリを表示</span>
+<span class="cmd">sudo conntrack -L</span>
+
+<span class="cmt"># 代表的な出力行（TCP で 192.168.1.10:52430 → 10.0.0.5:443 に張られた接続）</span>
+tcp      6 431999 ESTABLISHED src=192.168.1.10 dst=10.0.0.5 sport=52430 dport=443 \
+                              src=10.0.0.5 dst=192.168.1.10 sport=443 dport=52430 \
+                              [ASSURED] mark=0 use=1
+</code></pre>
+
+  <h4>各フィールドの意味</h4>
+  <div class="fields">
+    <div class="field-line"><span class="fhl-proto">tcp</span>        <span class="cmt">← L4 プロトコル名</span></div>
+    <div class="field-line"><span class="fhl-proto">6</span>          <span class="cmt">← プロトコル番号（/etc/protocols と一致）</span></div>
+    <div class="field-line"><span class="fhl-port">431999</span>     <span class="cmt">← このエントリの残り TTL 秒（既定 ESTABLISHED = 5 日 = 432000）</span></div>
+    <div class="field-line"><span class="fhl-state">ESTABLISHED</span> <span class="cmt">← TCP ステート（NEW/SYN_SENT/ESTABLISHED/FIN_WAIT/TIME_WAIT …）</span></div>
+    <div class="field-line"><span class="fhl-ip">src=...</span>       <span class="cmt">← ❶ 往路の 5 タプル（original direction）</span></div>
+    <div class="field-line"><span class="fhl-ip">src=...</span>       <span class="cmt">← ❷ 復路の 5 タプル（reply direction）</span></div>
+    <div class="field-line"><span class="fhl-match">[ASSURED]</span>   <span class="cmt">← 両方向観測済みフラグ（テーブル満杯時も守られやすい）</span></div>
+    <div class="field-line"><span class="fhl-port">mark=0</span>      <span class="cmt">← conntrack mark（iptables CONNMARK / OVS ct_mark で付与）</span></div>
+    <div class="field-line"><span class="fhl-port">use=1</span>       <span class="cmt">← このエントリを参照している kernel 構造体の数</span></div>
+  </div>
+
+  <div class="tip">
+    <strong>2 行ペアで 1 エントリ。</strong> 1 つの接続につき「往路」と「復路」の 5 タプルが並びます。NAT されている場合は、復路の IP / ポートが <em>書き換え後</em>の値になるため、一目で NAT の方向と変換先が判別できます。
+  </div>
+
+  <h3>よく使うフィルタ</h3>
+  <pre><code><span class="cmt"># プロトコル指定</span>
+<span class="cmd">sudo conntrack -L</span> <span class="key">-p tcp</span>
+<span class="cmd">sudo conntrack -L</span> <span class="key">-p udp</span>
+
+<span class="cmt"># 特定の状態だけ</span>
+<span class="cmd">sudo conntrack -L</span> <span class="key">-p tcp</span> <span class="key">--state ESTABLISHED</span>
+<span class="cmd">sudo conntrack -L</span> <span class="key">-p tcp</span> <span class="key">--state SYN_SENT</span>      <span class="cmt"># ハーフオープン</span>
+
+<span class="cmt"># 宛先 IP / 送信元 IP で絞る</span>
+<span class="cmd">sudo conntrack -L</span> <span class="key">-d</span> <span class="str">10.0.0.5</span>
+<span class="cmd">sudo conntrack -L</span> <span class="key">-s</span> <span class="str">192.168.1.10</span> <span class="key">-p tcp</span> <span class="key">--dport</span> <span class="num">443</span>
+
+<span class="cmt"># NAT 関連だけ（NAT 変換が起きているエントリのみ）</span>
+<span class="cmd">sudo conntrack -L</span> <span class="key">--src-nat</span>
+<span class="cmd">sudo conntrack -L</span> <span class="key">--dst-nat</span>
+
+<span class="cmt"># 件数だけ欲しい（table full 調査）</span>
+<span class="cmd">sudo conntrack -C</span>
+<span class="cmd">cat /proc/sys/net/netfilter/nf_conntrack_count</span>
+<span class="cmd">cat /proc/sys/net/netfilter/nf_conntrack_max</span>
+
+<span class="cmt"># リアルタイム監視（新規/更新イベントを流し続ける）</span>
+<span class="cmd">sudo conntrack -E</span></code></pre>
+
+  <h3>実例 1: Pod → 外部 DB への通信が「行けているのに戻ってこない」</h3>
+  <p>Kubernetes ノード上で Pod (10.244.3.7) が 外部 PostgreSQL (10.0.50.20:5432) に繋がらない。この時に真っ先に見るべきは「そもそも kube-proxy / OVN NAT が効いているか」です。</p>
+  <pre><code><span class="cmt"># Pod が張ろうとした TCP 接続を conntrack 側で観測</span>
+<span class="cmd">sudo conntrack -L -p tcp --dport 5432 | grep 10.244.3.7</span>
+
+<span class="cmt">── 期待する出力 ──</span>
+tcp 6 118 SYN_SENT src=<span class="grn">10.244.3.7</span> dst=10.0.50.20 sport=41100 dport=5432 \
+                   [UNREPLIED] src=10.0.50.20 dst=<span class="grn">203.0.113.7</span> sport=5432 dport=41100 mark=0 use=1
+                                                        ^^^^^^^^^^^^
+                                                        <span class="cmt">NAT 後の送信元（ノードの外部 IP）</span></code></pre>
+  <ul>
+    <li><code>SYN_SENT [UNREPLIED]</code> → 外向きに出してはいるが、応答が戻ってない＝経路 or ファイアウォールが怪しい</li>
+    <li>復路の src= が Pod IP のままだったら <strong>SNAT が効いていない</strong> → kube-proxy / OVN の LB 設定を疑う</li>
+  </ul>
+
+  <h3>実例 2: 「突然パケットが落ちる」— table full を疑う</h3>
+  <pre><code><span class="cmd">dmesg | grep -i conntrack</span>
+<span class="cmt">[12345.6789] nf_conntrack: nf_conntrack: table full, dropping packet</span>
+
+<span class="cmd">cat /proc/sys/net/netfilter/nf_conntrack_count</span>
+<span class="num">262143</span>
+
+<span class="cmd">cat /proc/sys/net/netfilter/nf_conntrack_max</span>
+<span class="num">262144</span>
+
+<span class="cmt"># 対処: 上限を引き上げる（永続化は /etc/sysctl.d/ に書く）</span>
+<span class="cmd">sudo sysctl -w net.netfilter.nf_conntrack_max=524288</span>
+
+<span class="cmt"># どの状態がテーブルを食っているか集計</span>
+<span class="cmd">sudo conntrack -L 2&gt;/dev/null | awk '{print $3}' | sort | uniq -c | sort -rn</span>
+  <span class="num">181203</span> TIME_WAIT     <span class="cmt">← これが多すぎならタイムアウト短縮を検討</span>
+   <span class="num">72110</span> ESTABLISHED
+   <span class="num">8830</span> SYN_SENT</code></pre>
+
+  <div class="tip warn">
+    <strong>TIME_WAIT が支配的</strong>な場合は <code>net.netfilter.nf_conntrack_tcp_timeout_time_wait</code>（既定 120 秒）を短縮するか、トラフィック次第では <code>-j NOTRACK</code> / <code>notrack</code> ターゲットで一部を除外します。
+  </div>
+
+  <h3>実例 3: OVS で commit された接続を確認する</h3>
+  <p>OVS の <code>ct(commit, zone=5)</code> アクションが実行されると、<code>nf_conntrack</code> に zone=5 で登録されます。ゾーン指定のフィルタで、OVS が書いたエントリだけを抜き出せます。</p>
+  <pre><code><span class="cmd">sudo conntrack -L --zone 5 -p tcp</span>
+tcp 6 431999 ESTABLISHED src=10.0.0.2 dst=10.0.0.3 sport=40000 dport=80 \
+                          src=10.0.0.3 dst=10.0.0.2 sport=80 dport=40000 \
+                          [ASSURED] mark=0 zone=<span class="num">5</span> use=1</code></pre>
+</section>
+
+<!-- ==================== ovs-ofctl dump-flows ==================== -->
+<section>
+  <h2>2. <code>ovs-ofctl dump-flows</code> — OpenFlow フローと統計カウンタを覗く</h2>
+
+  <div class="card ovs">
+    <h4>目的</h4>
+    <p>
+      指定したブリッジの <strong>OpenFlow テーブル</strong>に登録されている全フロールール（match と action のペア）と、
+      各ルールが<strong>何回マッチし、何バイト処理したか</strong>のカウンタを表示します。
+      パケットが意図したフローに届いていない／別のフローに食われている、という問題の一次切り分けに使います。
+    </p>
+  </div>
+
+  <h3>基本形と出力フォーマット</h3>
+  <pre><code><span class="cmt"># ブリッジ br-int の全フローを表示</span>
+<span class="cmd">sudo ovs-ofctl dump-flows br-int</span>
+
+<span class="cmt"># OVN 環境では OpenFlow 1.3 以上を指定（OVN は 1.3+ 前提）</span>
+<span class="cmd">sudo ovs-ofctl -O OpenFlow13 dump-flows br-int</span>
+
+<span class="cmt">── 代表的な出力行 ──</span>
+cookie=0x0, duration=1234.5s, table=0, n_packets=42, n_bytes=3528, priority=100,\
+  tcp,in_port=1,nw_dst=10.0.0.5,tp_dst=443 actions=ct(table=1,zone=5),output:2</code></pre>
+
+  <h4>各フィールドの意味</h4>
+  <div class="fields">
+    <div class="field-line"><span class="fhl-cmd">cookie=0x0</span>       <span class="cmt">← コントローラ（OVN 等）が付与する識別子。OVN は Logical_Flow の UUID を埋める</span></div>
+    <div class="field-line"><span class="fhl-port">duration=1234.5s</span> <span class="cmt">← このフローがインストールされてからの経過秒数</span></div>
+    <div class="field-line"><span class="fhl-state">table=0</span>         <span class="cmt">← OpenFlow のテーブル番号（OVN は 0〜約 80 まで用途別に使い分け）</span></div>
+    <div class="field-line"><span class="fhl-ip">n_packets=42</span>       <span class="cmt">← このフローにマッチした累積パケット数 ★超重要</span></div>
+    <div class="field-line"><span class="fhl-ip">n_bytes=3528</span>       <span class="cmt">← 同じく累積バイト数</span></div>
+    <div class="field-line"><span class="fhl-port">priority=100</span>      <span class="cmt">← 同テーブル内で高い値が優先（同じ match でも priority 差で勝敗が決まる）</span></div>
+    <div class="field-line"><span class="fhl-match">tcp,in_port=1,nw_dst=...</span> <span class="cmt">← マッチ条件。1 つでも不一致があれば次のフローへ</span></div>
+    <div class="field-line"><span class="fhl-action">actions=ct(...),output:2</span> <span class="cmt">← マッチ時の処理。複数アクションはカンマ区切りで順次実行</span></div>
+  </div>
+
+  <div class="tip">
+    <strong><code>n_packets</code> が 0 のままなら、パケットはこのフローに届いていない。</strong> デバッグで最初に見るべき列です。「フローは入っているのに通信できない」なら、priority 競合や match 不一致で別のフローが拾っている可能性を疑います。
+  </div>
+
+  <h3>よく使うフィルタ</h3>
+  <pre><code><span class="cmt"># 特定テーブルだけ</span>
+<span class="cmd">sudo ovs-ofctl dump-flows br-int table=<span class="num">0</span></span>
+
+<span class="cmt"># 特定 in_port・特定 IP にマッチするフローだけ</span>
+<span class="cmd">sudo ovs-ofctl dump-flows br-int</span> <span class="str">"in_port=5,ip,nw_dst=10.0.0.5"</span>
+
+<span class="cmt"># cookie（論理フロー UUID 相当）で絞る</span>
+<span class="cmd">sudo ovs-ofctl dump-flows br-int</span> <span class="str">"cookie=0x3f8b/-1"</span>  <span class="cmt"># / のあとの -1 は「マスクなし=完全一致」</span>
+
+<span class="cmt"># 統計だけ（match + actions は省略してサマリ表示）</span>
+<span class="cmd">sudo ovs-ofctl dump-aggregate br-int</span>
+
+<span class="cmt"># 指定パケットが通るルートをシミュレート（ovn-trace の OVS 版）</span>
+<span class="cmd">sudo ovs-appctl ofproto/trace br-int</span> \
+  <span class="str">"in_port=1,tcp,nw_src=10.0.0.2,nw_dst=10.0.0.5,tp_dst=443"</span>
+
+<span class="cmt"># kernel datapath の実キャッシュ（ovs-ofctl とは別レイヤ）</span>
+<span class="cmd">sudo ovs-dpctl dump-flows</span></code></pre>
+
+  <div class="tip warn">
+    <strong><code>ovs-ofctl dump-flows</code> と <code>ovs-dpctl dump-flows</code> は別物。</strong> 前者は <em>ユーザー空間の OpenFlow テーブル</em>、後者は <em>kernel datapath に落ちたキャッシュ</em>です。前者に居るのに後者に居ない場合は「upcall はあるがヒットしていない」可能性があります。
+  </div>
+
+  <h3>実例 1: 「フローは入っているのに通信できない」</h3>
+  <p>OVN で Security Group の allow ルールを書いたのに、VM 間通信が通らないケース。</p>
+  <pre><code><span class="cmd">sudo ovs-ofctl -O OpenFlow13 dump-flows br-int</span> | <span class="cmd">grep</span> <span class="str">"nw_dst=10.0.0.5"</span>
+cookie=0x11aa, duration=300s, table=44, <span class="grn">n_packets=0</span>, n_bytes=0,\
+  priority=2002,tcp,reg15=0x3,metadata=0x5,nw_dst=10.0.0.5,tp_dst=443 \
+  actions=resubmit(,45)
+cookie=0x22bb, duration=320s, table=44, <span class="grn">n_packets=18</span>, n_bytes=1512,\
+  priority=2003,ip,reg15=0x3,metadata=0x5 actions=drop</code></pre>
+  <ul>
+    <li>allow フロー（priority=2002）は <code>n_packets=0</code> → パケットが到達していない</li>
+    <li>一方、priority=2003 の <code>drop</code> にカウンタが乗っている → <strong>より高い priority が先に食っている</strong></li>
+    <li>対処: OVN の ACL 定義を見直し、allow の priority を上げる（OVN の ACL priority を 2003 以上に設定）</li>
+  </ul>
+
+  <h3>実例 2: conntrack commit がどのフローで起きているか</h3>
+  <pre><code><span class="cmd">sudo ovs-ofctl -O OpenFlow13 dump-flows br-int</span> | <span class="cmd">grep</span> <span class="str">"ct(commit"</span>
+cookie=0x33cc, duration=1200s, table=41, n_packets=<span class="num">532</span>, n_bytes=38112,\
+  priority=100,ct_state=+new+trk,tcp,reg15=0x3,metadata=0x5 \
+  actions=ct(commit,zone=NXM_NX_REG13[0..15],exec(load:0x1-&gt;NXM_NX_CT_LABEL[0])),resubmit(,42)</code></pre>
+  <p>このフローが <code>nf_conntrack</code> にエントリを書き込む箇所。<code>conntrack -L --zone N</code> で同じゾーンを見れば、ここから登録されたエントリが確認できます。</p>
+</section>
+
+<!-- ==================== ovn-trace ==================== -->
+<section>
+  <h2>3. <code>ovn-trace</code> — 論理ネットワークをシミュレーションする</h2>
+
+  <div class="card ovn">
+    <h4>目的</h4>
+    <p>
+      OVN の <strong>論理フロー</strong>（NB DB の設定から ovn-northd が生成した、物理情報を含まない match/action 集合）上で、
+      <strong>仮想パケットを流すシミュレーション</strong>を行い、どのパイプラインを通り、
+      どのフロー（ACL、ルーティング、LB、NAT 等）でどう処理され、最終的にどこへ出力されるか
+      を追跡します。
+    </p>
+    <p>特徴: <strong>実際にはパケットを流さない</strong>ため、実トラフィックを発生させずに机上で検証できる。変更前の検証・障害切り分けどちらにも使えます。</p>
+  </div>
+
+  <h3>基本形と 3 つの出力モード</h3>
+  <pre><code><span class="cmt"># 基本形: ovn-trace &lt;datapath&gt; &lt;microflow&gt;</span>
+<span class="cmt"># datapath = 論理スイッチ名 または 論理ルータ名（入り口）</span>
+<span class="cmd">sudo ovn-trace</span> <span class="key">sw0</span> \
+  <span class="str">'inport == "sw0-port1" &amp;&amp; eth.src == 00:00:00:00:00:01 &amp;&amp; eth.dst == 00:00:00:00:00:02 \
+   &amp;&amp; ip4 &amp;&amp; ip4.src == 10.0.0.2 &amp;&amp; ip4.dst == 10.0.0.3 \
+   &amp;&amp; ip.ttl == 64 &amp;&amp; tcp &amp;&amp; tcp.dst == 80'</span>
+
+<span class="cmt"># 出力モード（詳細度で 3 段階）</span>
+<span class="cmd">sudo ovn-trace --minimal    ...</span>  <span class="cmt"># 最終アクション（output ポートだけ）</span>
+<span class="cmd">sudo ovn-trace --summary    ...</span>  <span class="cmt"># パイプラインごとにまとめて表示</span>
+<span class="cmd">sudo ovn-trace --detailed   ...</span>  <span class="cmt"># 通過した全 Logical Flow を逐次表示（デフォルト）</span></code></pre>
+
+  <h3>microflow の書き方（主要フィールド）</h3>
+  <div class="fields">
+    <div class="field-line"><span class="fhl-match">inport == "..."</span>   <span class="cmt">← 入り口の論理ポート名（ovn-nbctl lsp-list で確認）</span></div>
+    <div class="field-line"><span class="fhl-match">eth.src / eth.dst</span> <span class="cmt">← 送信元 / 宛先 MAC</span></div>
+    <div class="field-line"><span class="fhl-proto">ip4 / ip6</span>        <span class="cmt">← プロトコル指定（必須）</span></div>
+    <div class="field-line"><span class="fhl-ip">ip4.src / ip4.dst</span>   <span class="cmt">← 送信元 / 宛先 IPv4</span></div>
+    <div class="field-line"><span class="fhl-port">ip.ttl</span>             <span class="cmt">← TTL（論理ルータ通過の挙動を再現するなら必須）</span></div>
+    <div class="field-line"><span class="fhl-proto">tcp / udp / icmp4</span> <span class="cmt">← L4 指定</span></div>
+    <div class="field-line"><span class="fhl-port">tcp.src / tcp.dst</span> <span class="cmt">← L4 ポート（ACL や LB 判定に必要）</span></div>
+  </div>
+
+  <div class="tip">
+    <strong>条件は <code>&amp;&amp;</code> で連結</strong>した 1 本の式として渡します。シングルクォートで全体を囲んでシェル展開を防ぐのが鉄則です。
+  </div>
+
+  <h3>出力の読み方（--detailed）</h3>
+  <pre><code><span class="cmd">sudo ovn-trace --detailed sw0</span> <span class="str">'...'</span>
+<span class="cmt"># ── 出力例 ──</span>
+ingress(dp="sw0", inport="sw0-port1")
+------------------------------------
+ 0. ls_in_port_sec_l2 (northd.c:XXXX): inport == "sw0-port1" &amp;&amp; eth.src == {00:00:00:00:00:01}, priority 50
+    next;
+ 5. ls_in_pre_acl (northd.c:XXXX): ip, priority 100
+    reg0[0] = 1;
+    next;
+ 7. ls_in_acl_hint (northd.c:XXXX): !ct.new &amp;&amp; ct.est &amp;&amp; !ct.rpl &amp;&amp; ct_mark.blocked == 0, priority 4
+    reg0[8] = 1; reg0[10] = 1; next;
+ 9. ls_in_acl (northd.c:XXXX): reg0[10] == 1 &amp;&amp; (outport == "sw0-port2" &amp;&amp; ip4 &amp;&amp; tcp &amp;&amp; tcp.dst == 80), priority 2002
+    <span class="grn">next;</span>                                   <span class="cmt">← ACL 通過（allow-related）</span>
+...
+<span class="grn">egress(dp="sw0", inport="sw0-port1", outport="sw0-port2")</span>
+---------------------------------------------------------
+ 9. ls_out_port_sec_l2: outport == "sw0-port2" &amp;&amp; eth.dst == {00:00:00:00:00:02}, priority 50
+    <span class="grn">output;</span>                                 <span class="cmt">← ここに出て行く</span>
+    /* output to "sw0-port2", type "" */</code></pre>
+
+  <ul>
+    <li><strong><code>ingress(dp=...)</code> / <code>egress(dp=...)</code></strong>: パイプラインの境目。ここが切り替わらずに終わる = どこかでドロップ</li>
+    <li><strong>テーブル番号（0〜32）</strong> と <strong>ステージ名（ls_in_pre_acl など）</strong>: OVN のパイプライン段階。名前だけで「ACL 判定中」「NAT 適用中」が分かる</li>
+    <li><strong>match 式 + priority</strong>: 実際にヒットした条件とその優先度</li>
+    <li><strong>action</strong>: <code>next;</code>（次段へ）/ <code>output;</code>（出力）/ <code>drop;</code>（破棄）/ <code>ct_next;</code>（conntrack 呼び出し）</li>
+  </ul>
+
+  <h3>実例 1: 「ACL でブロックされているかを確認」</h3>
+  <pre><code><span class="cmt"># VM-A (sw0-port1, 10.0.0.2) から VM-B (sw0-port2, 10.0.0.3) の TCP/22 を試す</span>
+<span class="cmd">sudo ovn-trace --summary sw0</span> \
+  <span class="str">'inport == "sw0-port1" &amp;&amp; eth.src == 00:00:00:00:00:01 \
+   &amp;&amp; eth.dst == 00:00:00:00:00:02 &amp;&amp; ip4 &amp;&amp; ip4.src == 10.0.0.2 \
+   &amp;&amp; ip4.dst == 10.0.0.3 &amp;&amp; ip.ttl == 64 &amp;&amp; tcp &amp;&amp; tcp.dst == 22'</span>
+
+<span class="cmt">── ドロップしている場合の典型的な出力 ──</span>
+ingress(dp="sw0", inport="sw0-port1")
+    next(pipeline=ingress, table=8);    <span class="cmt">// ls_in_acl</span>
+    ls_in_acl: ip4 &amp;&amp; tcp &amp;&amp; tcp.dst == 22, priority 2001, <span class="grn">drop</span>;
+*** <span class="grn">drop</span> action</code></pre>
+  <p><code>drop</code> の手前にヒットした ACL ルールの <code>priority</code> が見えるので、NB DB でその ACL を特定できます:</p>
+  <pre><code><span class="cmd">ovn-nbctl acl-list sw0</span>
+from-lport <span class="num">2001</span> (ip4 &amp;&amp; tcp &amp;&amp; tcp.dst == 22) drop  <span class="cmt">← これが原因</span>
+from-lport <span class="num">1000</span> (ip4) allow-related</code></pre>
+
+  <h3>実例 2: 論理ルータと NAT の挙動確認</h3>
+  <pre><code><span class="cmt"># 内部 VM (10.0.0.2) から外部 (8.8.8.8:443) へ出る想定。SNAT 定義を検証</span>
+<span class="cmd">sudo ovn-trace --detailed ls-internal</span> \
+  <span class="str">'inport == "vm1-port" &amp;&amp; eth.src == 00:11:22:33:44:55 \
+   &amp;&amp; eth.dst == 00:aa:bb:cc:dd:ee &amp;&amp; ip4 \
+   &amp;&amp; ip4.src == 10.0.0.2 &amp;&amp; ip4.dst == 8.8.8.8 \
+   &amp;&amp; ip.ttl == 64 &amp;&amp; tcp &amp;&amp; tcp.dst == 443'</span>
+
+<span class="cmt">── 重要部分 ──</span>
+lr_in_ip_routing: reg7 == 0 &amp;&amp; ip4.dst == 0.0.0.0/0, priority 1, reg0 = 192.0.2.1; ...
+lr_in_arp_resolve: ... next;
+lr_out_snat: ip4.src == 10.0.0.0/24, priority 50,
+  ct_snat(<span class="grn">192.0.2.100</span>);        <span class="cmt">← SNAT 後の IP がこれで合っているか確認</span>
+output;</code></pre>
+
+  <h3>実例 3: Load Balancer（VIP → backend）の展開を見る</h3>
+  <pre><code><span class="cmd">sudo ovn-trace --detailed lr-public</span> \
+  <span class="str">'... &amp;&amp; ip4.dst == 192.0.2.50 &amp;&amp; tcp &amp;&amp; tcp.dst == 80'</span>
+
+<span class="cmt">── LB の動き ──</span>
+lr_in_dnat: ip4.dst == 192.0.2.50 &amp;&amp; tcp.dst == 80, priority 120,
+  <span class="grn">ct_lb_mark(backends=10.0.0.10:8080,10.0.0.11:8080);</span>
+<span class="cmt">← VIP (192.0.2.50:80) を backend どちらかにハッシュで振り分けていることを確認</span></code></pre>
+
+  <h3>ovn-trace / ovs-appctl ofproto/trace / conntrack の使い分け</h3>
+  <table>
+    <thead>
+      <tr>
+        <th>やりたいこと</th>
+        <th>使うコマンド</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>「このパケットを流したら、論理的にどこで落ちる？」</td>
+        <td><code>ovn-trace</code>（NB DB 設定の論理検証）</td>
+      </tr>
+      <tr>
+        <td>「OVS の OpenFlow パイプラインとしてどう処理される？」</td>
+        <td><code>ovs-appctl ofproto/trace br-int "..."</code></td>
+      </tr>
+      <tr>
+        <td>「実際に流してみて、どのフローにカウンタが乗った？」</td>
+        <td><code>ovs-ofctl dump-flows</code> 前後比較</td>
+      </tr>
+      <tr>
+        <td>「今、kernel に残っている接続は？」</td>
+        <td><code>conntrack -L</code></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ==================== 複合シナリオ ==================== -->
+<section>
+  <h2>3 つを組み合わせた実戦デバッグ</h2>
+  <p><strong>状況:</strong> OpenStack + OVN 環境で、VM-A (10.0.0.2) から VM-B (10.0.0.5, TCP/443) への通信が 50% くらいの確率で RST になる、という曖昧な障害。以下の手順で切り分けます。</p>
+
+  <div class="steps">
+    <div class="step">
+      <h4>論理的に通るはず？ を <code>ovn-trace</code> で確認</h4>
+      <pre><code><span class="cmd">sudo ovn-trace --summary ls-tenant1</span> <span class="str">'inport == "vm-a" &amp;&amp; ... &amp;&amp; tcp.dst == 443'</span></code></pre>
+      <p>→ <code>output</code> で VM-B のポートに出る判定なら、論理設定は OK。ACL / ルーティングの問題はここで除外できる。</p>
+    </div>
+
+    <div class="step">
+      <h4>実フローにカウンタが乗っているかを <code>ovs-ofctl dump-flows</code> で</h4>
+      <pre><code><span class="cmt"># ping の前後で差分を取る</span>
+<span class="cmd">sudo ovs-ofctl -O OpenFlow13 dump-flows br-int | grep nw_dst=10.0.0.5 &gt; /tmp/before</span>
+<span class="cmt"># （ここで VM-A → VM-B に 100 回 curl など）</span>
+<span class="cmd">sudo ovs-ofctl -O OpenFlow13 dump-flows br-int | grep nw_dst=10.0.0.5 &gt; /tmp/after</span>
+<span class="cmd">diff /tmp/before /tmp/after</span></code></pre>
+      <p>→ allow フローの <code>n_packets</code> は増えているが、<strong>別テーブルで drop フローも増えていた</strong>場合 = priority 衝突。<br>→ 増えているフローの cookie から原因の Logical_Flow を特定できる。</p>
+    </div>
+
+    <div class="step">
+      <h4>kernel 側で接続が残っているかを <code>conntrack -L</code> で</h4>
+      <pre><code><span class="cmd">sudo conntrack -L -p tcp --dport 443 -s 10.0.0.2 -d 10.0.0.5</span></code></pre>
+      <p>
+        → <code>ESTABLISHED</code> が見えるなら commit は効いているが、RST が混ざるなら
+        <strong>conntrack 側で INVALID 判定を食っている</strong>可能性（例: TCP Out-of-Window）。
+        <code>sysctl net.netfilter.nf_conntrack_tcp_be_liberal=1</code> で緩和できる場合あり。
+      </p>
+    </div>
+
+    <div class="step">
+      <h4>結論と対処</h4>
+      <p>「論理は OK、フロー配布も OK、ただし kernel 側で TCP 状態が厳しくドロップ判定になっていた」という切り分けが、3 コマンドを順に使って 10 分で完結します。どれか 1 つでは「論理は正しい / 実際に動いている / kernel は許可している」のどの層で詰まっているかが見えません。</p>
+    </div>
+  </div>
+
+  <div class="tip ok">
+    <strong>鉄則:</strong> 上から降りる（<code>ovn-trace</code> → <code>ovs-ofctl dump-flows</code> → <code>conntrack -L</code>）。論理の誤りは物理で直せないし、物理で動いていないものは kernel には届きません。
+  </div>
+</section>
+
+<section>
+  <h2>まとめ</h2>
+  <ul>
+    <li><strong><code>conntrack -L</code></strong>: Linux kernel の接続追跡テーブルを実測。NAT 変換結果・接続 state・table full の原因を把握する。</li>
+    <li><strong><code>ovs-ofctl dump-flows</code></strong>: OVS の OpenFlow テーブルを実測。<code>n_packets</code> が「そのフローにパケットが到達したか」を語ってくれる。</li>
+    <li><strong><code>ovn-trace</code></strong>: OVN の論理パイプラインをシミュレート。パケットを流さずに机上検証でき、論理設計の正しさを確認できる。</li>
+    <li>3 つは同じネットワーク障害を<strong>別々のレイヤ</strong>から見る補完関係にある。上（論理） → 中（物理フロー） → 下（kernel 接続）の順に降ろすのが定石。</li>
+    <li>どのコマンドも単独の出力を「眺める」だけでは情報不足で、<strong>フィルタ（状態・プロトコル・IP・ゾーン）と差分観察</strong>を組み合わせて初めて真価を発揮する。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>参考リンク</h2>
+  <div class="links">
+    <a href="https://conntrack-tools.netfilter.org/manual.html" target="_blank" rel="noopener noreferrer">
+      conntrack-tools user manual (netfilter.org)
+      <span class="desc">conntrack コマンドの公式マニュアル。フィルタ／イベント購読／エントリ削除まで網羅。</span>
+    </a>
+    <a href="https://docs.kernel.org/networking/nf_conntrack-sysctl.html" target="_blank" rel="noopener noreferrer">
+      Netfilter Conntrack Sysfs variables (kernel.org)
+      <span class="desc">nf_conntrack_max / timeout 系 sysctl の公式リファレンス。</span>
+    </a>
+    <a href="https://docs.openvswitch.org/en/latest/ref/ovs-ofctl.8/" target="_blank" rel="noopener noreferrer">
+      ovs-ofctl(8) 公式マニュアル
+      <span class="desc">dump-flows のフィルタ構文、-O オプション、出力フィールドの意味。</span>
+    </a>
+    <a href="https://docs.openvswitch.org/en/stable/tutorials/ovs-conntrack/" target="_blank" rel="noopener noreferrer">
+      OVS Conntrack Tutorial
+      <span class="desc">OpenFlow ct() アクションと conntrack 統合の公式チュートリアル。</span>
+    </a>
+    <a href="https://man7.org/linux/man-pages/man8/ovn-trace.8.html" target="_blank" rel="noopener noreferrer">
+      ovn-trace(8) man page
+      <span class="desc">microflow 文法、出力モード、デバッグフラグの公式リファレンス。</span>
+    </a>
+    <a href="https://www.ovn.org/support/dist-docs/ovn-architecture.7.html" target="_blank" rel="noopener noreferrer">
+      ovn-architecture(7)
+      <span class="desc">論理パイプラインのテーブル番号・ステージ名が書いてある一次資料。</span>
+    </a>
+    <a href="ovn-ovs-conntrack.html">
+      併読: OVN と OVS の違い、そして conntrack の役割
+      <span class="desc">本ページの前提となる 3 者の関係をまとめた解説。</span>
+    </a>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OVN と OVS の違い、そして conntrack の役割 | ネットワーク解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --ovn-blue: #326ce5;
+    --ovs-green: #00a99d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #15243d 0%, #0b1a24 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -10%;
+    width: 60%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(50, 108, 229, 0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header::after {
+    content: "";
+    position: absolute;
+    top: -30%;
+    right: -10%;
+    width: 55%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(0, 169, 157, 0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header h1 {
+    font-size: 2.2rem;
+    background: linear-gradient(90deg, var(--ovn-blue), var(--ovs-green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative;
+    line-height: 1.3;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; position: relative; }
+  .net-logo {
+    display: inline-flex;
+    gap: 4px;
+    margin-bottom: 16px;
+    position: relative;
+  }
+  .net-logo span {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    display: inline-block;
+  }
+  .net-logo span:nth-child(1) { background: var(--ovn-blue); }
+  .net-logo span:nth-child(2) { background: var(--ovs-green); }
+  .net-logo span:nth-child(3) { background: var(--purple); }
+  .net-logo span:nth-child(4) { background: var(--yellow); }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--accent);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  h4 { font-size: 1.02rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+
+  /* カード */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 14px 0;
+  }
+  .card.ovn { border-top: 3px solid var(--ovn-blue); }
+  .card.ovs { border-top: 3px solid var(--ovs-green); }
+  .card.ct  { border-top: 3px solid var(--orange); }
+  .card h4 { margin-top: 0; }
+
+  /* Tips / Alert */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn {
+    background: rgba(240, 136, 62, 0.08);
+    border-left-color: var(--orange);
+  }
+  .tip.danger {
+    background: rgba(248, 81, 73, 0.08);
+    border-left-color: var(--red);
+  }
+  .tip.ok {
+    background: rgba(63, 185, 80, 0.08);
+    border-left-color: var(--green);
+  }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+  .tip.danger strong { color: var(--red); }
+  .tip.ok strong { color: var(--green); }
+
+  /* TL;DR */
+  .tldr {
+    background: linear-gradient(135deg, rgba(50, 108, 229, 0.1), rgba(0, 169, 157, 0.1));
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--ovn-blue);
+    border-radius: 10px;
+    padding: 18px 22px;
+    margin: 16px 0 24px;
+  }
+  .tldr h3 { margin-top: 0; color: var(--ovn-blue); }
+  .tldr p { margin-bottom: 8px; }
+  .tldr p:last-child { margin-bottom: 0; }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0 20px;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: top;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.nowrap { white-space: nowrap; width: 1%; }
+
+  table.compare th.col-ovs { color: var(--ovs-green); }
+  table.compare th.col-ovn { color: var(--ovn-blue); }
+  table.compare td.col-ovs { background: rgba(0, 169, 157, 0.05); }
+  table.compare td.col-ovn { background: rgba(50, 108, 229, 0.05); }
+  table.compare td.aspect { font-weight: 600; color: var(--text); white-space: nowrap; }
+
+  /* グリッド */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 12px;
+    margin: 14px 0;
+  }
+
+  /* アーキテクチャ図 */
+  .arch {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    margin: 16px 0;
+  }
+  .arch-layer {
+    display: grid;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  .arch-layer.cols-2 { grid-template-columns: 1fr 1fr; }
+  .arch-layer.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .arch-layer.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  .arch-box {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    font-size: 0.88rem;
+    text-align: center;
+  }
+  .arch-box.accent { border-color: var(--accent); color: var(--accent); }
+  .arch-box.ovn    { border-color: var(--ovn-blue); color: var(--ovn-blue); background: rgba(50, 108, 229, 0.08); }
+  .arch-box.ovs    { border-color: var(--ovs-green); color: var(--ovs-green); background: rgba(0, 169, 157, 0.08); }
+  .arch-box.ct     { border-color: var(--orange); color: var(--orange); background: rgba(240, 136, 62, 0.08); }
+  .arch-box.kernel { border-color: var(--purple); color: var(--purple); background: rgba(188, 140, 255, 0.08); }
+  .arch-box .sub   { display: block; color: var(--muted); font-size: 0.78rem; margin-top: 4px; font-weight: normal; }
+  .arch-box strong { font-weight: 600; }
+  .arrow-down {
+    text-align: center;
+    color: var(--muted);
+    font-size: 1.2rem;
+    padding: 2px 0;
+  }
+  .arch-title {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+  }
+
+  /* 2段構成（OVN/OVS関係図） */
+  .stack {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 22px;
+    margin: 16px 0;
+  }
+  .stack-box {
+    border-radius: 10px;
+    padding: 18px 20px;
+    margin-bottom: 12px;
+  }
+  .stack-box.ovn { background: rgba(50, 108, 229, 0.1); border: 2px solid var(--ovn-blue); }
+  .stack-box.ovs { background: rgba(0, 169, 157, 0.1); border: 2px solid var(--ovs-green); }
+  .stack-box.kernel { background: rgba(188, 140, 255, 0.1); border: 2px solid var(--purple); }
+  .stack-title {
+    font-weight: 700;
+    font-size: 1.05rem;
+    margin-bottom: 6px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .stack-title .tag {
+    font-size: 0.7rem;
+    padding: 2px 8px;
+    border-radius: 10px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .stack-box.ovn .stack-title { color: var(--ovn-blue); }
+  .stack-box.ovn .stack-title .tag { background: var(--ovn-blue); color: #fff; }
+  .stack-box.ovs .stack-title { color: var(--ovs-green); }
+  .stack-box.ovs .stack-title .tag { background: var(--ovs-green); color: #fff; }
+  .stack-box.kernel .stack-title { color: var(--purple); }
+  .stack-box.kernel .stack-title .tag { background: var(--purple); color: #fff; }
+  .stack-sub {
+    color: var(--muted);
+    font-size: 0.88rem;
+    margin-bottom: 8px;
+  }
+  .stack-arrow {
+    text-align: center;
+    color: var(--muted);
+    font-size: 1rem;
+    letter-spacing: 0.1em;
+    margin: 4px 0;
+  }
+
+  /* ステップ */
+  .steps { counter-reset: step-counter; margin: 16px 0; }
+  .step {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 22px 16px 64px;
+    margin-bottom: 12px;
+    position: relative;
+    counter-increment: step-counter;
+  }
+  .step::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 18px;
+    top: 16px;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--ovn-blue), var(--ovs-green));
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 0.88rem;
+  }
+  .step h4 { font-size: 1rem; margin-bottom: 6px; }
+
+  /* 状態バッジ */
+  .state-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 12px 0 16px;
+  }
+  .state-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .state-badge.new      { background: rgba(240, 136, 62, 0.15); color: var(--orange); border: 1px solid rgba(240, 136, 62, 0.4); }
+  .state-badge.est      { background: rgba(63, 185, 80, 0.15);  color: var(--green);  border: 1px solid rgba(63, 185, 80, 0.4); }
+  .state-badge.related  { background: rgba(88, 166, 255, 0.15); color: var(--accent); border: 1px solid rgba(88, 166, 255, 0.4); }
+  .state-badge.invalid  { background: rgba(248, 81, 73, 0.15);  color: var(--red);    border: 1px solid rgba(248, 81, 73, 0.4); }
+  .state-badge.untrack  { background: rgba(139, 148, 158, 0.15);color: var(--muted);  border: 1px solid rgba(139, 148, 158, 0.4); }
+
+  /* ct() 構文ブロック */
+  .ct-syntax {
+    background: var(--panel-2);
+    border: 1px dashed var(--orange);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 12px 0 16px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+  }
+  .ct-syntax .param {
+    color: var(--orange);
+    font-weight: 600;
+  }
+
+  /* レイヤ対応図 */
+  .layer-map {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 22px;
+    margin: 16px 0;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+  }
+  .layer-map .row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 4px 0;
+  }
+  .layer-map .indent { width: 22px; color: var(--muted); flex-shrink: 0; }
+  .layer-map .lbl { color: var(--muted); min-width: 190px; }
+  .layer-map .val { color: var(--text); }
+  .layer-map .val.ovn { color: var(--ovn-blue); }
+  .layer-map .val.ovs { color: var(--ovs-green); }
+  .layer-map .val.ct  { color: var(--orange); }
+  .layer-map .val.kernel { color: var(--purple); }
+
+  /* 参考リンク */
+  .links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 12px 0;
+  }
+  .links a {
+    display: block;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--accent);
+    text-decoration: none;
+    font-size: 0.9rem;
+    transition: border-color 0.15s, transform 0.15s;
+  }
+  .links a:hover {
+    border-color: var(--accent);
+    transform: translateX(4px);
+  }
+  .links a .desc {
+    display: block;
+    color: var(--muted);
+    font-size: 0.82rem;
+    margin-top: 2px;
+  }
+
+  @media (max-width: 768px) {
+    header h1 { font-size: 1.6rem; }
+    th, td { padding: 10px 12px; font-size: 0.85rem; }
+    .arch-layer.cols-3, .arch-layer.cols-4 { grid-template-columns: 1fr 1fr; }
+    .layer-map .lbl { min-width: 130px; font-size: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / ネットワーク / OVN と OVS の違い、そして conntrack の役割
+</div>
+
+<header>
+  <div class="net-logo"><span></span><span></span><span></span><span></span></div>
+  <h1>OVN と OVS の違い、そして conntrack の役割</h1>
+  <p>Open vSwitch / Open Virtual Network / Linux conntrack の関係を整理</p>
+</header>
+
+<section>
+  <h2>このページの結論（TL;DR）</h2>
+  <div class="tldr">
+    <h3>3 行でまとめると</h3>
+    <p><strong>OVS</strong>（Open vSwitch）は 1 ホスト上で動く<strong>データプレーン</strong>の仮想スイッチ。<strong>OVN</strong>（Open Virtual Network）はその上位に乗る<strong>クラスタ全体のコントロールプレーン</strong>で、論理スイッチ / ルータ / ACL / LB / NAT を宣言的に扱うレイヤです。OVN は単体では動かず、必ず OVS を前提とします。</p>
+    <p><strong>conntrack</strong> は Linux カーネルの <code>nf_conntrack</code> が提供する接続追跡機能。OVS の kernel datapath が OpenFlow の <code>ct()</code> アクション経由で直接呼び出し、OVN はそれを「ステートフル ACL」「Load Balancer」「NAT」といった<strong>論理機能として抽象化</strong>します。</p>
+    <p>つまり <strong>conntrack は OVN ではなく OVS（と Linux kernel）のレイヤで実行</strong>され、OVN は「その結果をどう使いたいか」を宣言するだけ、という役割分担になっています。</p>
+  </div>
+</section>
+
+<section>
+  <h2>OVS (Open vSwitch) とは</h2>
+  <p>
+    <strong>Open vSwitch (OVS)</strong> は 2007〜2008 年に Nicira Networks でスタートしたオープンソースの仮想スイッチです。
+    2012 年に VMware が Nicira を買収し、現在は <strong>Linux Foundation</strong> の下で開発が継続されています。
+    カーネルモジュールが GPL v2、メインコードは Apache 2.0、一部に BSD が含まれるライセンス構成で、
+    現行安定版は <strong>OVS 3.7.0</strong>（2026 年 2 月リリース）です。
+  </p>
+
+  <h3>アーキテクチャ構成</h3>
+  <p>OVS は「ユーザー空間デーモン + カーネルモジュール」の二層構造で動作します。</p>
+  <div class="arch">
+    <div class="arch-title">OVS の内部コンポーネント</div>
+
+    <div class="arch-layer cols-2">
+      <div class="arch-box ovs">
+        <strong>ovs-vswitchd</strong>
+        <span class="sub">ユーザー空間 / メインデーモン / OpenFlow 処理</span>
+      </div>
+      <div class="arch-box ovs">
+        <strong>ovsdb-server</strong>
+        <span class="sub">ユーザー空間 / JSON-RPC DB サーバー</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ upcall / フロー登録</div>
+    <div class="arch-layer cols-2">
+      <div class="arch-box kernel">
+        <strong>kernel datapath</strong>
+        <span class="sub">openvswitch.ko / フローキャッシュ / 高速転送</span>
+      </div>
+      <div class="arch-box accent">
+        <strong>userspace datapath</strong>
+        <span class="sub">DPDK / AF_XDP / ポーリングで高速化</span>
+      </div>
+    </div>
+  </div>
+
+  <h4>パケット処理の流れ</h4>
+  <ol>
+    <li>パケット到着 → <strong>kernel datapath</strong> がフローキャッシュを検索</li>
+    <li>キャッシュヒット → そのまま高速転送（ユーザー空間に戻らない）</li>
+    <li>キャッシュミス → <code>upcall</code> でユーザー空間の <code>ovs-vswitchd</code> に問い合わせ → OpenFlow パイプライン実行 → 結果をキャッシュに登録 → 以降の同一フローは kernel のみで処理</li>
+  </ol>
+
+  <h3>提供機能</h3>
+  <div class="grid">
+    <div class="card ovs">
+      <h4>L2 / トンネル</h4>
+      <p>VLAN / VXLAN / Geneve / GRE / STT をサポート。</p>
+    </div>
+    <div class="card ovs">
+      <h4>OpenFlow</h4>
+      <p>OpenFlow 1.0〜1.5 に対応。外部コントローラから制御可能。</p>
+    </div>
+    <div class="card ovs">
+      <h4>可観測性</h4>
+      <p>NetFlow / sFlow / IPFIX によるフロー統計。</p>
+    </div>
+    <div class="card ovs">
+      <h4>QoS</h4>
+      <p>HTB / HFSC などのキューイング。</p>
+    </div>
+    <div class="card ovs">
+      <h4>conntrack 統合</h4>
+      <p>OpenFlow の <code>ct()</code> アクションで Linux <code>nf_conntrack</code> を直接呼び出し。</p>
+    </div>
+  </div>
+
+  <h3>主要コマンド</h3>
+  <table>
+    <thead>
+      <tr><th>コマンド</th><th>対象</th><th>用途</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap"><code>ovs-vsctl</code></td><td>OVSDB</td><td>ブリッジ / ポートの追加・削除（<code>add-br</code>, <code>add-port</code>, <code>show</code>）</td></tr>
+      <tr><td class="nowrap"><code>ovs-ofctl</code></td><td>OpenFlow</td><td>フローエントリの管理（<code>dump-flows</code>, <code>add-flow</code>, <code>del-flows</code>）</td></tr>
+      <tr><td class="nowrap"><code>ovs-dpctl</code></td><td>kernel datapath</td><td>フローキャッシュの表示（<code>dump-flows</code>, <code>show</code>）</td></tr>
+      <tr><td class="nowrap"><code>ovs-appctl</code></td><td>vswitchd</td><td>実行中プロセスへの制御（<code>fdb/show</code>, <code>ofproto/trace</code>）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>主なユースケース</h3>
+  <ul>
+    <li>KVM / libvirt の仮想マシンネットワーク</li>
+    <li>OpenStack Neutron（<strong>ML2/OVS</strong> ドライバ）</li>
+    <li>Kubernetes CNI プラグイン（Antrea など）</li>
+    <li>SDN コントローラー（ONOS / OpenDaylight）との連携</li>
+  </ul>
+</section>
+
+<section>
+  <h2>OVN (Open Virtual Network) とは</h2>
+  <p>
+    <strong>Open Virtual Network (OVN)</strong> は 2015 年 1 月に OVS コアチーム
+    （Justin Pettit、Ben Pfaff ら）が発表した、OVS の上位に乗る
+    <strong>コントロールプレーン</strong>です。OVN は OVS 抜きでは動作しません。
+  </p>
+
+  <h3>OVN が解決した課題</h3>
+  <ul>
+    <li>マルチホストにまたがる<strong>論理ネットワークの自動構成</strong>（OVS 単体では各ホスト個別設定が必要）</li>
+    <li>L3 ルーティングを<strong>分散実装</strong>（従来は集中ルータ VM がボトルネック）</li>
+    <li>セキュリティグループの<strong>効率的な実装</strong>（OpenFlow 手書きは量とバグが問題）</li>
+    <li>ロードバランサ / DHCP の<strong>分散実装</strong></li>
+  </ul>
+
+  <h3>アーキテクチャ</h3>
+  <div class="arch">
+    <div class="arch-title">OVN の NB → SB → OVS データフロー</div>
+    <div class="arch-layer">
+      <div class="arch-box ovn">
+        <strong>CMS</strong>（OpenStack / Kubernetes など）
+        <span class="sub">論理設定を書き込む</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼</div>
+    <div class="arch-layer">
+      <div class="arch-box ovn">
+        <strong>OVN NB DB</strong>
+        <span class="sub">Logical_Switch / Logical_Router / ACL / Load_Balancer / NAT（人間が扱う論理設定）</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ ovn-northd が翻訳</div>
+    <div class="arch-layer">
+      <div class="arch-box ovn">
+        <strong>ovn-northd</strong>
+        <span class="sub">中央集権プロセス / NB → SB 変換エンジン / Logical Flow 生成</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼</div>
+    <div class="arch-layer">
+      <div class="arch-box ovn">
+        <strong>OVN SB DB</strong>
+        <span class="sub">Logical_Flow（match/action 中間表現）+ Port_Binding + Chassis</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ 各ホストの ovn-controller が読む</div>
+    <div class="arch-layer">
+      <div class="arch-box ovs">
+        <strong>ovn-controller</strong>（各ハイパーバイザ）
+        <span class="sub">SB の Logical Flow を OpenFlow に変換して OVS に投入</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼</div>
+    <div class="arch-layer">
+      <div class="arch-box ovs">
+        <strong>OVS</strong>（ovs-vswitchd + kernel datapath）
+        <span class="sub">実パケットを転送</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>Logical Flow とは:</strong> OVN 独自の match/action 中間表現で、
+    <strong>物理ポート情報や個別ホストの事情を含まない</strong>ため、
+    クラスタ全体で共通化できます。ovn-controller が各ホストの物理情報
+    （ローカルポート番号、トンネル先 IP 等）を埋めて OpenFlow に落とし込みます。
+  </div>
+
+  <h3>提供機能</h3>
+  <div class="grid">
+    <div class="card ovn">
+      <h4>論理スイッチ / ルータ</h4>
+      <p>分散実装のため各ホストで動作。ルータ VM 不要。</p>
+    </div>
+    <div class="card ovn">
+      <h4>ステートフル ACL</h4>
+      <p>NB DB に書くだけで、裏で conntrack を使った戻りトラフィック自動許可。</p>
+    </div>
+    <div class="card ovn">
+      <h4>Load Balancer</h4>
+      <p>VIP:Port を <code>Load_Balancer</code> テーブルに登録、conntrack DNAT で分散。</p>
+    </div>
+    <div class="card ovn">
+      <h4>NAT (SNAT/DNAT)</h4>
+      <p><code>NAT</code> テーブル定義のみで実装。集中 GW / 分散 GW のどちらも可。</p>
+    </div>
+    <div class="card ovn">
+      <h4>分散ゲートウェイ</h4>
+      <p>BFD による HA。外部接続点を複数ホストに分散。</p>
+    </div>
+    <div class="card ovn">
+      <h4>DHCP / DNS</h4>
+      <p>各ホストでローカル応答。中央サーバ不要。</p>
+    </div>
+  </div>
+
+  <h3>主要コマンド</h3>
+  <table>
+    <thead>
+      <tr><th>コマンド</th><th>対象</th><th>用途</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap"><code>ovn-nbctl</code></td><td>NB DB</td><td>論理設定の投入（<code>ls-add</code>, <code>lsp-add</code>, <code>lr-add</code>, <code>acl-add</code>）</td></tr>
+      <tr><td class="nowrap"><code>ovn-sbctl</code></td><td>SB DB</td><td>変換結果の確認（<code>lflow-list</code>, <code>show</code>）</td></tr>
+      <tr><td class="nowrap"><code>ovn-trace</code></td><td>SB DB</td><td>論理パケットのシミュレーション（デバッグの定番）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>主なユースケース</h3>
+  <ul>
+    <li>OpenStack Neutron（<strong>ML2/OVN</strong>、2023.1 以降デフォルトドライバ）</li>
+    <li>OpenShift / <strong>ovn-kubernetes</strong>（K8s CNI）</li>
+    <li>MicroCloud / LXD のクラスタネットワーク</li>
+  </ul>
+</section>
+
+<section>
+  <h2>OVS vs OVN 違い対応表</h2>
+  <p>責務がどこに属するかを一覧で。</p>
+
+  <h3>全体の位置づけ</h3>
+  <table class="compare">
+    <thead>
+      <tr>
+        <th>観点</th>
+        <th class="col-ovs">OVS</th>
+        <th class="col-ovn">OVN</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="aspect">抽象度</td><td class="col-ovs">物理ホスト単位の仮想スイッチ</td><td class="col-ovn">クラスタ全体の論理ネット制御プレーン</td></tr>
+      <tr><td class="aspect">スコープ</td><td class="col-ovs">1 ホスト</td><td class="col-ovn">複数ホスト横断</td></tr>
+      <tr><td class="aspect">設定対象</td><td class="col-ovs">ブリッジ / ポート / OpenFlow フロー</td><td class="col-ovn">論理スイッチ / ルータ / ACL / LB</td></tr>
+      <tr><td class="aspect">状態同期</td><td class="col-ovs">自ホストのみ</td><td class="col-ovn">SB DB でクラスタ全体に同期</td></tr>
+      <tr><td class="aspect">役割</td><td class="col-ovs">データプレーン（下位）</td><td class="col-ovn">コントロールプレーン（上位）</td></tr>
+      <tr><td class="aspect">単体利用</td><td class="col-ovs">可能</td><td class="col-ovn">不可（OVS 必須）</td></tr>
+    </tbody>
+  </table>
+
+  <h3>機能別の責務分担</h3>
+  <table class="compare">
+    <thead>
+      <tr>
+        <th>機能</th>
+        <th class="col-ovs">OVS での実現</th>
+        <th class="col-ovn">OVN での実現</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td class="aspect">L2 スイッチング</td><td class="col-ovs">MAC ラーニング + OpenFlow。単一ホスト内で完結</td><td class="col-ovn">論理スイッチ。異ホスト間は Geneve で自動接続</td></tr>
+      <tr><td class="aspect">VLAN</td><td class="col-ovs"><code>ovs-vsctl set port tag=N</code></td><td class="col-ovn"><code>Logical_Switch_Port</code> の <code>tag</code> フィールド</td></tr>
+      <tr><td class="aspect">VXLAN / Geneve</td><td class="col-ovs"><code>ovs-vsctl add-port</code> で手動</td><td class="col-ovn">Chassis 情報から自動生成</td></tr>
+      <tr><td class="aspect">L3 ルーティング</td><td class="col-ovs">OpenFlow 疑似実装。複雑でエラーが出やすい</td><td class="col-ovn">論理ルータ / 分散実装 / ルータ VM 不要</td></tr>
+      <tr><td class="aspect">分散 GW</td><td class="col-ovs">調整機構なし</td><td class="col-ovn">分散ゲートウェイポート + BFD HA</td></tr>
+      <tr><td class="aspect">ACL / SG</td><td class="col-ovs">OpenFlow を手動記述</td><td class="col-ovn">NB DB の <code>ACL</code> テーブル / conntrack 自動付与</td></tr>
+      <tr><td class="aspect">Load Balancer</td><td class="col-ovs">conntrack DNAT を手動で書く</td><td class="col-ovn"><code>Load_Balancer</code> テーブルに登録するだけ</td></tr>
+      <tr><td class="aspect">NAT</td><td class="col-ovs"><code>ct()</code> + OpenFlow を手書き</td><td class="col-ovn"><code>NAT</code> テーブル定義で自動実装</td></tr>
+      <tr><td class="aspect">DHCP</td><td class="col-ovs">機能なし。外部 <code>dnsmasq</code> が必要</td><td class="col-ovn"><code>DHCP_Options</code> テーブル / 分散応答</td></tr>
+      <tr><td class="aspect">設定方法</td><td class="col-ovs"><code>ovs-vsctl</code> / <code>ovs-ofctl</code></td><td class="col-ovn"><code>ovn-nbctl</code>（宣言的）</td></tr>
+      <tr><td class="aspect">デバッグ</td><td class="col-ovs"><code>ovs-ofctl dump-flows</code> / <code>ovs-dpctl</code></td><td class="col-ovn"><code>ovn-sbctl lflow-list</code> / <code>ovn-trace</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>データプレーンとコントロールプレーンの関係</h2>
+  <p>OVN（上位）と OVS（下位）が「何を書いたら何に変換されるか」を 1 枚絵で。</p>
+  <div class="stack">
+    <div class="stack-box ovn">
+      <div class="stack-title">OVN <span class="tag">Control Plane</span></div>
+      <div class="stack-sub">ユーザーが触るレイヤ。クラスタ全体の論理設定。</div>
+      <div class="arch-layer cols-3" style="margin-top: 10px;">
+        <div class="arch-box ovn"><strong>NB DB</strong><span class="sub">論理 ACL / LB / NAT</span></div>
+        <div class="arch-box ovn"><strong>ovn-northd</strong><span class="sub">NB → SB 変換</span></div>
+        <div class="arch-box ovn"><strong>SB DB</strong><span class="sub">Logical Flow</span></div>
+      </div>
+    </div>
+    <div class="stack-arrow">▼ ovn-controller が OpenFlow に変換して各ホストの OVS に配布 ▼</div>
+    <div class="stack-box ovs">
+      <div class="stack-title">OVS <span class="tag">Data Plane</span></div>
+      <div class="stack-sub">実際のパケット転送を担うレイヤ。各ホストに 1 セット。</div>
+      <div class="arch-layer cols-3" style="margin-top: 10px;">
+        <div class="arch-box ovs"><strong>ovs-vswitchd</strong><span class="sub">OpenFlow 処理</span></div>
+        <div class="arch-box ovs"><strong>ovsdb-server</strong><span class="sub">設定 DB</span></div>
+        <div class="arch-box ovs"><strong>kernel datapath</strong><span class="sub">高速転送 + ct()</span></div>
+      </div>
+    </div>
+    <div class="stack-arrow">▼ ct() アクションで呼び出し ▼</div>
+    <div class="stack-box kernel">
+      <div class="stack-title">Linux Kernel <span class="tag">OS Layer</span></div>
+      <div class="stack-sub">netfilter / nf_conntrack。接続状態を実体として保持。</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>conntrack とは</h2>
+  <p>
+    <strong>conntrack (Connection Tracking)</strong> は Linux カーネルの
+    <strong>netfilter サブシステム</strong>の一部で、2.6.15 以降に <code>nf_conntrack</code> として実装されています。
+    パケットが通るたびに、それがどの「接続」に属するかを<strong>5 タプル</strong>単位で追跡し、
+    ステートフルなファイアウォール / NAT / ロードバランサの基盤を提供します。
+  </p>
+
+  <h3>5 タプル</h3>
+  <div class="ct-syntax">
+    <span class="param">src_ip</span> : <span class="param">dst_ip</span> : <span class="param">sport</span> : <span class="param">dport</span> : <span class="param">proto</span>
+  </div>
+  <p>対応プロトコル: <code>TCP</code> / <code>UDP</code> / <code>ICMP</code> / <code>DCCP</code> / <code>SCTP</code> / <code>GRE</code>。</p>
+
+  <h3>主な状態</h3>
+  <div class="state-row">
+    <span class="state-badge new">NEW</span>
+    <span class="state-badge est">ESTABLISHED</span>
+    <span class="state-badge related">RELATED</span>
+    <span class="state-badge invalid">INVALID</span>
+    <span class="state-badge untrack">UNTRACKED</span>
+  </div>
+  <table>
+    <thead>
+      <tr><th>状態</th><th>意味</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap"><strong style="color: var(--orange);">NEW</strong></td><td>最初のパケットを見た状態（まだ応答未観測）</td></tr>
+      <tr><td class="nowrap"><strong style="color: var(--green);">ESTABLISHED</strong></td><td>往復両方向のパケットを観測済み。正常な接続</td></tr>
+      <tr><td class="nowrap"><strong style="color: var(--accent);">RELATED</strong></td><td>既存接続に関連するパケット（FTP データコネクション、ICMP エラー等）</td></tr>
+      <tr><td class="nowrap"><strong style="color: var(--red);">INVALID</strong></td><td>既存接続にも属さず新規でもない。通常は破棄対象</td></tr>
+      <tr><td class="nowrap"><strong style="color: var(--muted);">UNTRACKED</strong></td><td><code>NOTRACK</code> ターゲット等で明示的に追跡除外されたパケット</td></tr>
+    </tbody>
+  </table>
+
+  <h3>主要コマンド（<code>conntrack-tools</code>）</h3>
+<pre><code><span class="cmt"># 全エントリの表示</span>
+<span class="cmd">conntrack</span> -L
+
+<span class="cmt"># 状態で絞り込み（ESTABLISHED の TCP のみ）</span>
+<span class="cmd">conntrack</span> -L -p tcp --state ESTABLISHED
+
+<span class="cmt"># エントリ削除（5 タプル指定）</span>
+<span class="cmd">conntrack</span> -D -s <span class="num">10.0.0.1</span> -d <span class="num">10.0.0.2</span> -p tcp --sport <span class="num">5000</span> --dport <span class="num">80</span>
+
+<span class="cmt"># 現在のエントリ数と設定値の確認</span>
+<span class="cmd">cat</span> /proc/sys/net/netfilter/nf_conntrack_count
+<span class="cmd">cat</span> /proc/sys/net/netfilter/nf_conntrack_max
+
+<span class="cmt"># 旧方式のテーブル生表示（procfs）</span>
+<span class="cmd">cat</span> /proc/net/nf_conntrack</code></pre>
+
+  <h3>主な sysctl チューニングパラメータ</h3>
+  <table>
+    <thead>
+      <tr><th>パラメータ</th><th>意味</th><th>既定値 / 目安</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="nowrap"><code>nf_conntrack_max</code></td>
+        <td>追跡できる最大エントリ数</td>
+        <td>総メモリ / 16384（最小 65536）／ 8 GB RAM なら <code>262144</code> 程度が目安</td>
+      </tr>
+      <tr>
+        <td class="nowrap"><code>nf_conntrack_buckets</code></td>
+        <td>内部ハッシュテーブルのバケット数</td>
+        <td>通常 <code>max / 4</code> 推奨</td>
+      </tr>
+      <tr>
+        <td class="nowrap"><code>nf_conntrack_tcp_timeout_established</code></td>
+        <td>ESTABLISHED 状態のエントリ保持時間</td>
+        <td>既定 <code>432000</code> 秒（= 5 日）。LB 前段ホストでは短縮検討</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>代表的なトラブル</h3>
+  <div class="tip danger">
+    <strong>nf_conntrack: table full, dropping packet</strong>
+    <p style="margin-top: 6px;">
+      エントリが <code>nf_conntrack_max</code> に達した状態。<strong>新規接続がドロップ</strong>され、
+      既存の追跡済み接続は維持されます（= 新規 SYN だけが落ちる症状）。
+      K8s ノードや LB でよく見る。
+    </p>
+  </div>
+  <h4>対処の順序</h4>
+  <ol>
+    <li><code>nf_conntrack_max</code> を増やす（ただし RAM を食うのでほどほどに）</li>
+    <li>TCP <code>timeout_established</code> を短縮する（長寿命のゴミエントリを減らす）</li>
+    <li>大量 UDP などは <code>NOTRACK</code> / <code>ct_state=-trk</code> で追跡除外</li>
+    <li>Prometheus 等で <code>nf_conntrack_count</code> を監視してアラート</li>
+  </ol>
+</section>
+
+<section>
+  <h2>conntrack は OVN と OVS のどちらと関係するのか</h2>
+
+  <div class="tip ok">
+    <strong>結論:</strong>
+    conntrack は <strong>OVS（と Linux kernel）の責務</strong>。
+    OpenFlow の <code>ct()</code> アクション経由で kernel の <code>nf_conntrack</code> を直接呼び出します。
+    OVN は conntrack を<strong>直接意識せず</strong>、「ステートフル ACL」「LB」「NAT」として<strong>論理的に宣言するだけ</strong>で、裏側で ovn-northd が ct_commit 等を含む Logical Flow を生成し、最終的に OVS の <code>ct()</code> に落ちる形です。
+  </div>
+
+  <h3>OVS に入った <code>ct()</code> アクション</h3>
+  <p>
+    2016 年頃の OVS に <code>ct()</code> アクションが実装され、それまで必要だった
+    <strong>「Linux bridge + iptables」に一度迂回してから OVS に戻す</strong>という煩雑なデータパスが不要になりました。
+    OVS 自身が OpenFlow パイプラインの中から直接 <code>nf_conntrack</code> を呼べます。
+  </p>
+
+  <h4><code>ct()</code> アクションの主なパラメータ</h4>
+  <div class="ct-syntax">
+    ct(<span class="param">table</span>=N, <span class="param">commit</span>, <span class="param">zone</span>=N, <span class="param">exec</span>(set_field:N-&gt;ct_mark), <span class="param">nat</span>)
+  </div>
+  <table>
+    <thead>
+      <tr><th>パラメータ</th><th>意味</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap"><code>table=N</code></td><td>conntrack 処理後のパケットを table N に再投入</td></tr>
+      <tr><td class="nowrap"><code>commit</code></td><td>この接続を conntrack テーブルに永続化（以降 ESTABLISHED 化）</td></tr>
+      <tr><td class="nowrap"><code>zone=N</code></td><td>16 bit のテナント識別子。重複 IP 空間を持つマルチテナント対応</td></tr>
+      <tr><td class="nowrap"><code>exec(...)</code></td><td>conntrack エントリにメタデータ（<code>ct_mark</code>, <code>ct_label</code>）を付与</td></tr>
+      <tr><td class="nowrap"><code>nat</code></td><td>SNAT / DNAT を conntrack と連携させて実行</td></tr>
+    </tbody>
+  </table>
+
+  <h3>ステートフルファイアウォール実装例（OpenFlow）</h3>
+  <p>「左ポート（<code>veth_l0</code>）から右ポート（<code>veth_r0</code>）への接続は許可、戻りも許可、それ以外の戻りは遮断」を conntrack で実装した例。</p>
+
+  <div class="steps">
+    <div class="step">
+      <h4>未追跡パケットを conntrack に送る</h4>
+<pre><code><span class="cmt"># ct_state=-trk: まだ conntrack を通っていないパケット</span>
+table=<span class="num">0</span>, priority=<span class="num">50</span>, <span class="key">ct_state</span>=-trk, tcp, in_port=veth_l0,
+  actions=<span class="cmd">ct</span>(table=<span class="num">0</span>)</code></pre>
+    </div>
+    <div class="step">
+      <h4>NEW 接続は commit して転送</h4>
+<pre><code><span class="cmt"># ct_state=+trk+new: 追跡済みかつ新規</span>
+table=<span class="num">0</span>, priority=<span class="num">50</span>, <span class="key">ct_state</span>=+trk+new, tcp, in_port=veth_l0,
+  actions=<span class="cmd">ct</span>(commit), output:veth_r0</code></pre>
+    </div>
+    <div class="step">
+      <h4>ESTABLISHED の応答は自動で許可</h4>
+<pre><code><span class="cmt"># ct_state=+trk+est: 確立済み接続の戻りパケット</span>
+table=<span class="num">0</span>, priority=<span class="num">50</span>, <span class="key">ct_state</span>=+trk+est, tcp, in_port=veth_r0,
+  actions=output:veth_l0</code></pre>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>ポイント:</strong> 戻りトラフィックに対して個別の許可ルールを書く必要がない
+    （= セキュリティグループのルール数が激減）のが conntrack の最大のメリットです。
+  </div>
+
+  <h3>OVN は <code>ct()</code> を直接書かない</h3>
+  <p>
+    OVN では <strong><code>ovn-nbctl acl-add ... allow-related</code></strong> のように論理的な宣言を書くだけで、
+    ovn-northd が自動的に <code>ct_commit</code> を含む Logical Flow を生成し、
+    各ホストの ovn-controller がそれを OpenFlow の <code>ct()</code> に変換します。
+  </p>
+
+  <div class="grid">
+    <div class="card ct">
+      <h4>ステートフル ACL</h4>
+      <p>OVN のステージ <code>ls_in_stateful</code> / <code>lr_in_stateful</code> で
+      conntrack 処理が挟まれる。<code>allow-related</code> で戻りを自動許可。</p>
+    </div>
+    <div class="card ct">
+      <h4>Load Balancer</h4>
+      <p>VIP:Port を <code>Load_Balancer</code> テーブルに登録するだけ。
+      conntrack <strong>DNAT</strong> で各バックエンドに分散、各ホストで分散実行。</p>
+    </div>
+    <div class="card ct">
+      <h4>NAT</h4>
+      <p><code>NAT</code> テーブル定義のみ。集中型 GW ルータ、または分散 GW ポートで実行。
+      戻りの逆変換は conntrack 任せ。</p>
+    </div>
+  </div>
+
+  <h3>conntrack を使うメリット（OVS/OVN 共通）</h3>
+  <ol>
+    <li>接続状態管理（TCP ステートマシン含む）を<strong>カーネル任せ</strong>にでき、自前実装が不要</li>
+    <li>カーネルのハッシュテーブル最適化で<strong> O(1) ルックアップ</strong></li>
+    <li>NAT の逆変換が<strong>自動</strong>（戻りに対する OpenFlow ルールが不要）</li>
+    <li>セキュリティグループの<strong>ルール数が激減</strong>（戻りは ESTABLISHED で自動許可）</li>
+    <li><code>zone=</code> による<strong>マルチテナント重複 IP 対応</strong></li>
+  </ol>
+
+  <h3>レイヤ対応図（NB DB の 1 行がどこまで降りていくか）</h3>
+  <div class="layer-map">
+    <div class="row"><span class="lbl">OVN NB DB:</span><span class="val ovn">ACL <code style="color: var(--ovn-blue);">allow-related</code></span></div>
+    <div class="row"><span class="indent">└▶</span><span class="lbl">ovn-northd:</span><span class="val ovn">Logical Flow に <code style="color: var(--ovn-blue);">ct_commit</code> を生成</span></div>
+    <div class="row"><span class="indent">　└▶</span><span class="lbl">OVN SB DB:</span><span class="val ovn">Logical_Flow 行として保存</span></div>
+    <div class="row"><span class="indent">　　└▶</span><span class="lbl">ovn-controller:</span><span class="val ovs">OpenFlow <code style="color: var(--ovs-green);">ct(commit, table=N, zone=M)</code></span></div>
+    <div class="row"><span class="indent">　　　└▶</span><span class="lbl">ovs-vswitchd:</span><span class="val ovs">OpenFlow パイプライン実行</span></div>
+    <div class="row"><span class="indent">　　　　└▶</span><span class="lbl">kernel datapath:</span><span class="val ct"><code style="color: var(--orange);">nf_conntrack</code> 呼び出し</span></div>
+    <div class="row"><span class="indent">　　　　　└▶</span><span class="lbl">Linux kernel:</span><span class="val kernel">nf_conntrack テーブルにエントリ記録</span></div>
+  </div>
+
+  <div class="tip warn">
+    <strong>覚えておくと良いこと:</strong>
+    <code>conntrack -L</code> で見えるエントリはあくまで <strong>Linux kernel</strong> の持ち物。
+    OVN / OVS のプロセスが落ちても、カーネルが動いている限り conntrack 自体は生きている、というレイヤ構造です。
+  </div>
+</section>
+
+<section>
+  <h2>まとめ</h2>
+  <ul>
+    <li><strong>OVS = データプレーン</strong>（1 ホスト上の仮想スイッチ）、<strong>OVN = コントロールプレーン</strong>（クラスタ全体の論理ネット管理）。OVN は OVS 無しでは動かない。</li>
+    <li>OVN は <code>ovn-nbctl</code> で論理的に書き、ovn-northd が <strong>Logical Flow</strong>、ovn-controller が各ホストで <strong>OpenFlow</strong> に落とす。</li>
+    <li><strong>conntrack</strong> は Linux kernel の <code>nf_conntrack</code>。5 タプルで接続を追跡し、ステートフル FW / NAT / LB の基盤になる。</li>
+    <li>OVS は OpenFlow の <code>ct()</code> アクションでカーネル conntrack を直接呼び出す。<strong>OVN は ct() を書かず、ACL / LB / NAT として宣言するだけ</strong>。</li>
+    <li>トラブル対応では <code>conntrack -L</code> / <code>ovs-ofctl dump-flows</code> / <code>ovn-trace</code> を<strong>レイヤごとに切り分け</strong>て使うのが基本。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>参考リンク</h2>
+  <div class="links">
+    <a href="https://docs.openvswitch.org/en/latest/intro/what-is-ovs/" target="_blank" rel="noopener noreferrer">
+      docs.openvswitch.org — What is Open vSwitch?
+      <span class="desc">OVS 公式の入門ドキュメント</span>
+    </a>
+    <a href="https://docs.openvswitch.org/en/stable/tutorials/ovs-conntrack/" target="_blank" rel="noopener noreferrer">
+      docs.openvswitch.org — OVS Conntrack Tutorial
+      <span class="desc">ct() アクションを使ったステートフル FW チュートリアル</span>
+    </a>
+    <a href="https://www.ovn.org/support/dist-docs/ovn-architecture.7.html" target="_blank" rel="noopener noreferrer">
+      ovn.org — ovn-architecture(7)
+      <span class="desc">OVN 公式のアーキテクチャ解説（NB / SB / northd / controller）</span>
+    </a>
+    <a href="https://www.ovn.org/en/architecture/" target="_blank" rel="noopener noreferrer">
+      ovn.org — Architecture Overview
+      <span class="desc">OVN プロジェクトのハイレベル設計概要</span>
+    </a>
+    <a href="https://man7.org/linux/man-pages/man7/ovn-architecture.7.html" target="_blank" rel="noopener noreferrer">
+      man7.org — ovn-architecture(7)
+      <span class="desc">同等内容の man ページミラー</span>
+    </a>
+    <a href="https://docs.kernel.org/networking/nf_conntrack-sysctl.html" target="_blank" rel="noopener noreferrer">
+      docs.kernel.org — nf_conntrack sysctl
+      <span class="desc">nf_conntrack_max / buckets / timeout 等のチューニング公式ドキュメント</span>
+    </a>
+    <a href="https://conntrack-tools.netfilter.org/manual.html" target="_blank" rel="noopener noreferrer">
+      conntrack-tools.netfilter.org — Manual
+      <span class="desc">conntrack コマンドの公式マニュアル</span>
+    </a>
+    <a href="https://github.com/ovn-org/ovn" target="_blank" rel="noopener noreferrer">
+      github.com/ovn-org/ovn
+      <span class="desc">OVN ソースコードリポジトリ</span>
+    </a>
+    <a href="https://github.com/openvswitch/ovs" target="_blank" rel="noopener noreferrer">
+      github.com/openvswitch/ovs
+      <span class="desc">Open vSwitch ソースコードリポジトリ</span>
+    </a>
+  </div>
+</section>
+
+</div>
+</body>
+</html>

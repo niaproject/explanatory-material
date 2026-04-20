@@ -4,7 +4,10 @@
     "allow": [
       "Bash(python .*$)",
       "Bash(cd .*$)",
-      "Read(.*$)"
+      "WebFetch(domain:.*)",
+      "WebFetch(domain:networkheresy.wordpress.com)",
+      "WebFetch(domain:blogs.vmware.com)",
+      "WebFetch(domain:arthurchiao.art)"
     ],
     "additionalDirectories": [
       "d:\\VSCode\\.*"

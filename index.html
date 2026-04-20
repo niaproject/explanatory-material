@@ -25,6 +25,7 @@
       --cat-claude: #da7756;
       --cat-github: #8957e5;
       --cat-nodejs: #cb3837;
+      --cat-networking: #00a99d;
     }
 
     * {
@@ -205,6 +206,7 @@
     .cat-chip.claude { background: rgba(218, 119, 86, 0.15); color: var(--cat-claude); border: 1px solid rgba(218, 119, 86, 0.3); }
     .cat-chip.github { background: rgba(137, 87, 229, 0.15); color: var(--cat-github); border: 1px solid rgba(137, 87, 229, 0.3); }
     .cat-chip.nodejs { background: rgba(203, 56, 55, 0.15); color: var(--cat-nodejs); border: 1px solid rgba(203, 56, 55, 0.3); }
+    .cat-chip.networking { background: rgba(0, 169, 157, 0.15); color: var(--cat-networking); border: 1px solid rgba(0, 169, 157, 0.3); }
     .update-title {
       font-weight: 500;
       font-size: 0.98rem;
@@ -251,6 +253,7 @@
     .cat-card[data-cat="claude"]:hover { border-color: var(--cat-claude); }
     .cat-card[data-cat="github"]:hover { border-color: var(--cat-github); }
     .cat-card[data-cat="nodejs"]:hover { border-color: var(--cat-nodejs); }
+    .cat-card[data-cat="networking"]:hover { border-color: var(--cat-networking); }
     .cat-card .cat-icon { font-size: 2.4rem; margin-bottom: 0.75rem; }
     .cat-card .cat-name {
       font-size: 1.2rem;
@@ -446,10 +449,29 @@
         icon: "📦",
         desc: "Node.js / npm / pnpm などのパッケージマネージャ",
       },
+      networking: {
+        name: "ネットワーク",
+        icon: "🌐",
+        desc: "OVS / OVN / conntrack などの仮想ネットワーク技術",
+      },
     };
 
     // updated は YYYY-MM-DD HH:mm:ss (ローカル時刻) でソート精度を秒まで確保
     const PAGES = [
+      {
+        title: "conntrack -L / ovs-ofctl dump-flows / ovn-trace の使い分け",
+        desc: "3 つの主要ネットワークデバッグコマンドがそれぞれ「どのレイヤ（Linux kernel / OVS OpenFlow / OVN 論理）を覗くのか」を整理。出力フォーマット分解、よく使うフィルタ、典型トラブル実例、3 コマンドを組み合わせた切り分けシナリオまで。",
+        url: "topics/networking/network-debug-commands.html",
+        category: "networking",
+        updated: "2026-04-20 21:35:31",
+      },
+      {
+        title: "OVN と OVS の違い、そして conntrack の役割",
+        desc: "Open vSwitch (データプレーン) と Open Virtual Network (コントロールプレーン) のアーキテクチャ比較、責務分担表、ovn-northd による論理フロー変換、そして Linux kernel の nf_conntrack がどこで使われているか(OpenFlow ct() アクション、ステートフル ACL、Load Balancer)を図解。",
+        url: "topics/networking/ovn-ovs-conntrack.html",
+        category: "networking",
+        updated: "2026-04-20 20:47:18",
+      },
       {
         title: "npm と pnpm の違い",
         desc: "同じ package.json を扱う 2 つのパッケージマネージャの設計思想の差を徹底比較。フラットな node_modules vs ハードリンク+symlink、ファントム依存、ディスク使用量、インストール速度、コマンド対応表、モノレポ対応、Corepack での導入、既存プロジェクトの移行チェックリストまで。",
