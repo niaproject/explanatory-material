@@ -21,6 +21,8 @@
     --cf: #f6821f;
     --cf-2: #faae40;
     --cf-dark: #c46514;
+    --link: #79c0ff;
+    --link-hover: #a5d6ff;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
@@ -32,13 +34,34 @@
   }
   .container { max-width: 1100px; margin: 0 auto; }
 
+  /* 共通リンクスタイル — ダーク背景でも視認しやすい明るい青 + 下線 */
+  a {
+    color: var(--link);
+    text-decoration: underline;
+    text-decoration-color: rgba(121, 192, 255, 0.45);
+    text-underline-offset: 3px;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  }
+  a:hover {
+    color: var(--link-hover);
+    text-decoration-color: var(--link-hover);
+  }
+  a:visited { color: var(--link); }
+  /* ナビ用リンクは下線なし（ホバー時のみ表示） */
+  .breadcrumb a, .toc a {
+    text-decoration: none;
+  }
+  .breadcrumb a:hover, .toc a:hover {
+    text-decoration: underline;
+  }
+
   .breadcrumb {
     margin-bottom: 20px;
     color: var(--muted);
     font-size: 0.9rem;
   }
-  .breadcrumb a { color: var(--accent); text-decoration: none; }
-  .breadcrumb a:hover { text-decoration: underline; }
+  .breadcrumb a { color: var(--link); }
+  .breadcrumb a:hover { color: var(--link-hover); }
 
   header {
     text-align: center;
@@ -440,8 +463,8 @@
     margin-bottom: 10px;
   }
   .toc ol { margin-left: 1.4em; }
-  .toc a { color: var(--accent); text-decoration: none; }
-  .toc a:hover { text-decoration: underline; }
+  .toc a { color: var(--link); }
+  .toc a:hover { color: var(--link-hover); }
 
   /* スクリーンショット */
   .screenshot {
