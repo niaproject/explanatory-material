@@ -1,0 +1,1502 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CLI しか使えない環境で git push する — GitHub 認証の全手順（Linux / Windows / macOS） | GitHub 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --gh: #8957e5;
+    --ssh: #3fb950;
+    --pat: #f0883e;
+    --oauth: #58a6ff;
+    --win: #00a4ef;
+    --mac: #a2aaad;
+    --lin: #f0ad4e;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 24px;
+    padding: 48px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(circle, rgba(137, 87, 229, 0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header::after {
+    content: "";
+    position: absolute;
+    bottom: -30%;
+    right: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(circle, rgba(63, 185, 80, 0.12) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header .logo-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #24292e, #0d1117);
+    color: #fff;
+    border: 1px solid var(--gh);
+    border-radius: 14px;
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(137, 87, 229, 0.3);
+    position: relative;
+  }
+  header h1 {
+    font-size: 2.0rem;
+    background: linear-gradient(90deg, var(--gh), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; position: relative; }
+
+  /* ===== OS グローバル切替 ===== */
+  .os-switcher {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background: rgba(13, 17, 23, 0.92);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px 14px;
+    margin-bottom: 32px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .os-switcher .label {
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 700;
+  }
+  .os-switcher .btns { display: flex; gap: 6px; flex-wrap: wrap; }
+  .os-btn {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 7px 14px;
+    border-radius: 999px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.15s;
+  }
+  .os-btn:hover { color: var(--text); border-color: var(--accent); }
+  .os-btn.active[data-os="linux"]   { background: rgba(240, 173, 78, 0.15); color: var(--lin); border-color: var(--lin); }
+  .os-btn.active[data-os="windows"] { background: rgba(0, 164, 239, 0.15); color: var(--win); border-color: var(--win); }
+  .os-btn.active[data-os="mac"]     { background: rgba(162, 170, 173, 0.15); color: var(--mac); border-color: var(--mac); }
+
+  /* OS-variant visibility — default: Linux visible */
+  .os-variant { display: none; }
+  body.os-linux   .os-variant.v-linux   { display: block; }
+  body.os-windows .os-variant.v-windows { display: block; }
+  body.os-mac     .os-variant.v-mac     { display: block; }
+
+  /* OS variant header chip */
+  .os-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .os-chip.linux   { background: rgba(240, 173, 78, 0.15); color: var(--lin); border: 1px solid rgba(240, 173, 78, 0.4); }
+  .os-chip.windows { background: rgba(0, 164, 239, 0.15); color: var(--win); border: 1px solid rgba(0, 164, 239, 0.4); }
+  .os-chip.mac     { background: rgba(162, 170, 173, 0.15); color: var(--mac); border: 1px solid rgba(162, 170, 173, 0.4); }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.6rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: var(--gh);
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.2rem; margin: 20px 0 10px; color: var(--accent); }
+  h4 { font-size: 1.02rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+  .path { color: var(--yellow); font-weight: 600; }
+  .out  { color: var(--green); }
+  .prompt { color: var(--gh); font-weight: 700; }
+  .ps-prompt { color: var(--win); font-weight: 700; }
+
+  /* 判定チャート */
+  .decision {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 24px;
+    margin: 20px 0 28px;
+  }
+  .decision-step {
+    padding: 14px 18px;
+    background: var(--panel-2);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 4px solid var(--accent);
+  }
+  .decision-step.yes { border-left-color: var(--green); }
+  .decision-step.no  { border-left-color: var(--red); }
+  .decision-step .q {
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .decision-step .a {
+    color: var(--muted);
+    font-size: 0.92rem;
+  }
+  .decision-step .a strong { color: var(--text); }
+
+  /* 方法比較カード */
+  .method-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 18px;
+    margin: 20px 0 28px;
+  }
+  .method-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    position: relative;
+    overflow: hidden;
+  }
+  .method-card.ssh { border-top: 4px solid var(--ssh); }
+  .method-card.pat { border-top: 4px solid var(--pat); }
+  .method-card.oauth { border-top: 4px solid var(--oauth); }
+  .method-card.deploy { border-top: 4px solid var(--purple); }
+  .method-card .tag {
+    display: inline-block;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 999px;
+    margin-bottom: 8px;
+  }
+  .method-card.ssh .tag { background: rgba(63, 185, 80, 0.15); color: var(--ssh); border: 1px solid rgba(63, 185, 80, 0.4); }
+  .method-card.pat .tag { background: rgba(240, 136, 62, 0.15); color: var(--pat); border: 1px solid rgba(240, 136, 62, 0.4); }
+  .method-card.oauth .tag { background: rgba(88, 166, 255, 0.15); color: var(--oauth); border: 1px solid rgba(88, 166, 255, 0.4); }
+  .method-card.deploy .tag { background: rgba(188, 140, 255, 0.15); color: var(--purple); border: 1px solid rgba(188, 140, 255, 0.4); }
+  .method-card h3 { margin: 6px 0 6px; color: var(--text); font-size: 1.1rem; }
+  .method-card .sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 12px; }
+  .method-card .meta {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 4px 12px;
+    font-size: 0.85rem;
+    margin-top: 10px;
+  }
+  .method-card .meta dt { color: var(--muted); }
+  .method-card .meta dd { color: var(--text); }
+
+  /* ステップバッジ */
+  .steps {
+    counter-reset: step-counter;
+    list-style: none;
+    padding: 0;
+    margin: 18px 0;
+  }
+  .steps > li {
+    counter-increment: step-counter;
+    position: relative;
+    padding: 16px 18px 16px 64px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .steps > li::before {
+    content: counter(step-counter);
+    position: absolute;
+    left: 16px;
+    top: 14px;
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--gh), var(--accent));
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 0.95rem;
+    box-shadow: 0 4px 12px rgba(137, 87, 229, 0.3);
+  }
+  .steps > li .step-title {
+    font-weight: 700;
+    margin-bottom: 6px;
+    color: var(--text);
+  }
+  .steps > li p, .steps > li pre { margin: 6px 0 0; }
+
+  /* Tip */
+  .tip {
+    background: rgba(88, 166, 255, 0.08);
+    border-left: 4px solid var(--accent);
+    padding: 14px 18px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+  }
+  .tip.warn { background: rgba(240, 136, 62, 0.08); border-left-color: var(--orange); }
+  .tip.danger { background: rgba(248, 81, 73, 0.08); border-left-color: var(--red); }
+  .tip.ok { background: rgba(63, 185, 80, 0.08); border-left-color: var(--green); }
+  .tip strong { color: var(--accent); }
+  .tip.warn strong { color: var(--orange); }
+  .tip.danger strong { color: var(--red); }
+  .tip.ok strong { color: var(--green); }
+
+  /* テーブル */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border-radius: 12px;
+    overflow: hidden;
+    margin: 12px 0 20px;
+  }
+  th, td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: top;
+  }
+  th { background: var(--panel-2); color: var(--accent); font-weight: 600; }
+  tr:last-child td { border-bottom: none; }
+  td.tool { font-family: "SF Mono", Consolas, monospace; font-size: 0.88rem; }
+  td.star { font-size: 1rem; letter-spacing: 0.1em; }
+  .mark-ok { color: var(--green); font-weight: 700; }
+  .mark-ng { color: var(--red); font-weight: 700; }
+  .mark-mid { color: var(--yellow); font-weight: 700; }
+
+  /* 会話風の対話ブロック */
+  .terminal {
+    background: #010409;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0;
+    margin: 14px 0 20px;
+    overflow: hidden;
+  }
+  .terminal .bar {
+    background: #161b22;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .terminal .bar .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+  }
+  .terminal .bar .dot.r { background: #ff5f57; }
+  .terminal .bar .dot.y { background: #febc2e; }
+  .terminal .bar .dot.g { background: #28c840; }
+  .terminal .bar .ttl {
+    margin-left: 10px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    font-family: "SF Mono", Consolas, monospace;
+  }
+  .terminal pre {
+    background: transparent;
+    border: none;
+    margin: 0;
+    border-radius: 0;
+    padding: 14px 18px;
+  }
+
+  /* 概念図 */
+  .flow-map {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    margin: 16px 0 24px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr auto 1fr;
+    gap: 14px;
+    align-items: center;
+  }
+  .flow-box {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px;
+    text-align: center;
+    font-size: 0.9rem;
+  }
+  .flow-box.a { border-top: 3px solid var(--gh); }
+  .flow-box.b { border-top: 3px solid var(--accent); }
+  .flow-box.c { border-top: 3px solid var(--green); }
+  .flow-box .name { font-weight: 700; margin-bottom: 4px; }
+  .flow-box .sub { color: var(--muted); font-size: 0.78rem; }
+  .arrow {
+    font-size: 1.6rem;
+    color: var(--muted);
+    font-weight: 700;
+    text-align: center;
+  }
+
+  /* チェックリスト */
+  .checklist { list-style: none !important; padding-left: 2px !important; margin-left: 0 !important; }
+  .checklist li {
+    position: relative;
+    padding-left: 28px;
+    margin-bottom: 10px;
+    list-style: none;
+  }
+  .checklist li::before {
+    content: "☐";
+    position: absolute;
+    left: 0;
+    top: 0;
+    color: var(--gh);
+    font-size: 1.1rem;
+    font-weight: bold;
+  }
+  .checklist li strong { color: var(--text); }
+
+  /* OS キーパス早見表 */
+  .os-pathmap {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 14px;
+    margin: 16px 0 24px;
+  }
+  .os-pathcard {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .os-pathcard.linux   { border-top: 3px solid var(--lin); }
+  .os-pathcard.windows { border-top: 3px solid var(--win); }
+  .os-pathcard.mac     { border-top: 3px solid var(--mac); }
+  .os-pathcard h4 { margin: 0 0 8px; }
+  .os-pathcard dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 0.85rem; }
+  .os-pathcard dt { color: var(--muted); }
+  .os-pathcard dd { color: var(--yellow); font-family: "SF Mono", Consolas, monospace; word-break: break-all; }
+
+  @media (max-width: 820px) {
+    header h1 { font-size: 1.45rem; }
+    .flow-map { grid-template-columns: 1fr; }
+    .arrow { transform: rotate(90deg); }
+    th, td { padding: 10px 12px; font-size: 0.85rem; }
+  }
+</style>
+</head>
+<body class="os-linux">
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / GitHub / CLI 環境で git push の認証（Linux / Windows / macOS）
+</div>
+
+<header>
+  <div class="logo-mark">SSH</div>
+  <h1>CLI 環境で git push するための GitHub 認証</h1>
+  <p>ヘッドレス Linux・Windows（PowerShell / Git Bash）・macOS（Terminal）の 3 環境共通で通用する認証戦略を 1 ページに</p>
+</header>
+
+<!-- ===== グローバル OS セレクタ ===== -->
+<div class="os-switcher" role="tablist" aria-label="OS selector">
+  <span class="label">🖥 OS:</span>
+  <div class="btns">
+    <button class="os-btn active" data-os="linux" role="tab" aria-selected="true">🐧 Linux</button>
+    <button class="os-btn" data-os="windows" role="tab" aria-selected="false">🪟 Windows</button>
+    <button class="os-btn" data-os="mac" role="tab" aria-selected="false">🍎 macOS</button>
+  </div>
+  <span style="margin-left: auto; color: var(--muted); font-size: 0.82rem;">選択した OS に応じてコマンド・パスが切り替わります</span>
+</div>
+
+<section>
+  <h2>結論（5 行まとめ）</h2>
+  <ul>
+    <li>CLI 環境で <code>git push</code> する場合、GitHub が 2021 年以降に廃止した<strong>パスワード認証</strong>は使えない。</li>
+    <li>実用的な選択肢は <strong>① SSH 鍵 ／ ② Personal Access Token (PAT) ／ ③ gh CLI の Device Flow ／ ④ Deploy Key</strong> の 4 択。</li>
+    <li>個人の開発環境なら <strong>SSH 鍵</strong>が最も手軽で鍵管理が楽（パスフレーズ付き推奨）。</li>
+    <li>CI / Bot / 一時利用なら <strong>PAT</strong>（fine-grained で最小権限＆期限付き）が向く。</li>
+    <li>ブラウザは使えないがトークン発行画面に別端末からアクセスできるなら <strong>gh auth login</strong>（デバイスコードフロー）が最速。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>前提 — なぜ普通の「ユーザー名＋パスワード」ではダメなのか</h2>
+  <p>
+    GitHub は <strong>2021 年 8 月 13 日</strong>をもって、<code>git</code> 操作における<strong>パスワード認証を完全に廃止</strong>しました。
+    HTTPS リモート URL に対して GitHub アカウントのパスワードを入れてもこうなります（どの OS でも同じ）。
+  </p>
+  <div class="terminal">
+    <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="ttl">~</span></div>
+<pre><code><span class="prompt">$</span> <span class="cmd">git</span> push origin main
+Username for <span class="str">'https://github.com'</span>: yourname
+Password for <span class="str">'https://yourname@github.com'</span>: <span class="cmt">(パスワード入力)</span>
+<span class="out">remote: Support for password authentication was removed on August 13, 2021.</span>
+<span class="out">remote: Please see https://docs.github.com/get-started/...</span>
+<span class="out">fatal: Authentication failed for 'https://github.com/you/repo.git/'</span></code></pre>
+  </div>
+  <p>つまり「パスワードの代わりに<strong>トークン</strong>または<strong>鍵</strong>を使う」必要があります。CLI 環境特有の制約はさらに次の 3 つ:</p>
+  <ul>
+    <li>GUI ブラウザがない（OAuth の自動リダイレクトが使えない場合がある）</li>
+    <li>デスクトップ環境がない / 制限されている（キーチェーン連携が動かないことがある）</li>
+    <li>SSH / PowerShell Remoting / RDP 越しに操作している</li>
+  </ul>
+</section>
+
+<section>
+  <h2>OS 別の前提知識 — 秘密鍵の置き場所と鍵管理</h2>
+
+  <div class="os-pathmap">
+    <div class="os-pathcard linux">
+      <h4>🐧 Linux</h4>
+      <dl>
+        <dt>秘密鍵</dt><dd>~/.ssh/id_ed25519</dd>
+        <dt>公開鍵</dt><dd>~/.ssh/id_ed25519.pub</dd>
+        <dt>設定</dt><dd>~/.ssh/config</dd>
+        <dt>known_hosts</dt><dd>~/.ssh/known_hosts</dd>
+        <dt>gh 設定</dt><dd>~/.config/gh/hosts.yml</dd>
+        <dt>PAT 保存</dt><dd>~/.git-credentials（store 時）</dd>
+        <dt>agent</dt><dd>ssh-agent (要手動起動)</dd>
+      </dl>
+    </div>
+    <div class="os-pathcard windows">
+      <h4>🪟 Windows</h4>
+      <dl>
+        <dt>秘密鍵</dt><dd>%USERPROFILE%\.ssh\id_ed25519</dd>
+        <dt>公開鍵</dt><dd>%USERPROFILE%\.ssh\id_ed25519.pub</dd>
+        <dt>設定</dt><dd>%USERPROFILE%\.ssh\config</dd>
+        <dt>known_hosts</dt><dd>%USERPROFILE%\.ssh\known_hosts</dd>
+        <dt>gh 設定</dt><dd>%APPDATA%\GitHub CLI\hosts.yml</dd>
+        <dt>PAT 保存</dt><dd>資格情報マネージャー (DPAPI)</dd>
+        <dt>agent</dt><dd>Windows サービス ssh-agent</dd>
+      </dl>
+    </div>
+    <div class="os-pathcard mac">
+      <h4>🍎 macOS</h4>
+      <dl>
+        <dt>秘密鍵</dt><dd>~/.ssh/id_ed25519</dd>
+        <dt>公開鍵</dt><dd>~/.ssh/id_ed25519.pub</dd>
+        <dt>設定</dt><dd>~/.ssh/config</dd>
+        <dt>known_hosts</dt><dd>~/.ssh/known_hosts</dd>
+        <dt>gh 設定</dt><dd>~/.config/gh/hosts.yml</dd>
+        <dt>PAT 保存</dt><dd>login.keychain (osxkeychain)</dd>
+        <dt>agent</dt><dd>launchd 経由で自動起動</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="tip">
+    <strong>重要な統一ルール:</strong> どの OS でも「<code>.ssh</code> ディレクトリをユーザープロファイル直下に置く」「秘密鍵は<strong>自分だけ</strong>が読める状態に絞る」の 2 点は共通。
+    Linux/macOS は <code>chmod</code> でパーミッションを設定し、Windows は <code>icacls</code> で ACL を設定します（後述）。
+  </div>
+</section>
+
+<section>
+  <h2>方法を選ぶ判定チャート（OS 共通）</h2>
+  <div class="decision">
+    <div class="decision-step yes">
+      <div class="q">Q1. その環境に長期常駐して個人開発するか？</div>
+      <div class="a">→ YES なら <strong>① SSH 鍵</strong>。パスフレーズ付きで鍵を作って公開鍵を GitHub に登録。一度やれば push / pull すべて解決。</div>
+    </div>
+    <div class="decision-step yes">
+      <div class="q">Q2. CI / デプロイなど「このリポジトリだけ」に狭く使いたい？</div>
+      <div class="a">→ YES なら <strong>④ Deploy Key</strong>（読み取り専用 or 書き込み可能を選べる、アカウントに紐づかない鍵）。</div>
+    </div>
+    <div class="decision-step yes">
+      <div class="q">Q3. 別のマシンのブラウザは使えるが、自分の端末側にはブラウザが無い（または出したくない）？</div>
+      <div class="a">→ YES なら <strong>③ gh CLI のデバイスフロー</strong>。短いコードを別端末のブラウザで打ち込むだけで OAuth が通る。</div>
+    </div>
+    <div class="decision-step no">
+      <div class="q">Q4. スクリプト内や環境変数で認証情報を流し込みたい？</div>
+      <div class="a">→ <strong>② Personal Access Token (PAT)</strong>。ヘッダやリモート URL にそのまま埋め込めて自動化に強いが、期限・スコープ管理を怠ると漏洩リスク大。</div>
+    </div>
+  </div>
+  <div class="tip">
+    <strong>迷ったら SSH 鍵。</strong> 一度セットアップすれば <code>ssh-agent</code> が代わりに覚えてくれるので、以後 push のたびに何も入力せずに済みます。
+  </div>
+</section>
+
+<section>
+  <h2>4 つの方法 — 一覧比較</h2>
+  <div class="method-grid">
+    <div class="method-card ssh">
+      <span class="tag">推奨</span>
+      <h3>① SSH 鍵</h3>
+      <div class="sub">リモート URL を <code>git@github.com:...</code> にして公開鍵を GitHub に登録</div>
+      <dl class="meta">
+        <dt>難易度</dt><dd>★★☆</dd>
+        <dt>自動化</dt><dd><span class="mark-ok">◎</span>（agent で常駐）</dd>
+        <dt>期限切れ</dt><dd>なし（鍵を revoke しない限り）</dd>
+        <dt>ブラウザ不要</dt><dd><span class="mark-ok">◎</span></dd>
+      </dl>
+    </div>
+    <div class="method-card pat">
+      <span class="tag">自動化向け</span>
+      <h3>② Personal Access Token</h3>
+      <div class="sub">HTTPS の URL または credential helper 経由で使う</div>
+      <dl class="meta">
+        <dt>難易度</dt><dd>★☆☆</dd>
+        <dt>自動化</dt><dd><span class="mark-ok">◎</span></dd>
+        <dt>期限切れ</dt><dd>30〜365 日（推奨は短め）</dd>
+        <dt>ブラウザ不要</dt><dd><span class="mark-mid">○</span>（発行時のみ必要）</dd>
+      </dl>
+    </div>
+    <div class="method-card oauth">
+      <span class="tag">対話向け</span>
+      <h3>③ gh auth login（デバイスフロー）</h3>
+      <div class="sub">別端末のブラウザで 8 桁コードを入れるだけで OAuth 成立</div>
+      <dl class="meta">
+        <dt>難易度</dt><dd>★☆☆</dd>
+        <dt>自動化</dt><dd><span class="mark-ng">△</span>（対話必須）</dd>
+        <dt>期限切れ</dt><dd>OAuth トークンの寿命に準拠</dd>
+        <dt>ブラウザ不要</dt><dd><span class="mark-mid">○</span>（別端末必須）</dd>
+      </dl>
+    </div>
+    <div class="method-card deploy">
+      <span class="tag">CI 向け</span>
+      <h3>④ Deploy Key</h3>
+      <div class="sub">リポジトリ単位の SSH 鍵。アカウントに紐づかない</div>
+      <dl class="meta">
+        <dt>難易度</dt><dd>★★☆</dd>
+        <dt>自動化</dt><dd><span class="mark-ok">◎</span></dd>
+        <dt>期限切れ</dt><dd>なし</dd>
+        <dt>ブラウザ不要</dt><dd><span class="mark-ok">◎</span>（登録時のみ別端末）</dd>
+      </dl>
+    </div>
+  </div>
+</section>
+
+<!-- ===================== 方法 1: SSH 鍵 ===================== -->
+<section>
+  <h2>方法 ① — SSH 鍵を使う（個人環境の定番）</h2>
+  <p>
+    HTTPS ではなく SSH プロトコルで push するので、そもそも「GitHub のパスワード」は関係なくなります。
+    秘密鍵を持つ者だけが認証に通る、という公開鍵暗号の仕組みです。
+  </p>
+
+  <div class="flow-map">
+    <div class="flow-box a">
+      <div class="name">🖥 ローカル環境</div>
+      <div class="sub"><span class="os-variant v-linux">~/.ssh/id_ed25519</span>
+        <span class="os-variant v-windows">%USERPROFILE%\.ssh\id_ed25519</span>
+        <span class="os-variant v-mac">~/.ssh/id_ed25519</span>
+        <br>秘密鍵（秘密）</div>
+    </div>
+    <div class="arrow">⇄</div>
+    <div class="flow-box b">
+      <div class="name">🔐 SSH 認証</div>
+      <div class="sub">ssh git@github.com<br>公開鍵で署名検証</div>
+    </div>
+    <div class="arrow">⇄</div>
+    <div class="flow-box c">
+      <div class="name">🐙 GitHub</div>
+      <div class="sub">Settings → SSH keys<br>公開鍵（公開）</div>
+    </div>
+  </div>
+
+  <h3>セットアップ手順</h3>
+  <ol class="steps">
+    <li>
+      <div class="step-title">Step 1. 鍵を生成する</div>
+      <p>Ed25519（短くて速い、現在の推奨）で作ります。コメント（<code>-C</code>）は GitHub の<em>ノート代わり</em>なので何でも可。</p>
+
+      <div class="os-variant v-linux">
+        <span class="os-chip linux">🐧 Linux</span>
+<pre><code><span class="cmt"># ~/.ssh が無ければ作成</span>
+<span class="prompt">$</span> <span class="cmd">mkdir</span> -p ~/.ssh &amp;&amp; <span class="cmd">chmod</span> 700 ~/.ssh
+
+<span class="prompt">$</span> <span class="cmd">ssh-keygen</span> -t ed25519 -C <span class="str">"linux-server-for-github"</span>
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (/home/you/.ssh/id_ed25519): <span class="cmt">（そのまま Enter）</span>
+Enter passphrase (empty for no passphrase): <span class="cmt">（強めのパスフレーズを推奨）</span>
+Your identification has been saved in <span class="path">/home/you/.ssh/id_ed25519</span>
+Your public key has been saved in <span class="path">/home/you/.ssh/id_ed25519.pub</span></code></pre>
+      </div>
+
+      <div class="os-variant v-windows">
+        <span class="os-chip windows">🪟 Windows（PowerShell）</span>
+<pre><code><span class="cmt"># OpenSSH は Windows 10 1803 以降に標準同梱</span>
+<span class="cmt"># .ssh ディレクトリが無ければ作る</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">New-Item</span> -ItemType Directory -Force -Path <span class="str">"$env:USERPROFILE\.ssh"</span>
+
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">ssh-keygen</span> -t ed25519 -C <span class="str">"windows-pc-for-github"</span>
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (C:\Users\you/.ssh/id_ed25519): <span class="cmt">（そのまま Enter）</span>
+Enter passphrase (empty for no passphrase): <span class="cmt">（強めのパスフレーズを推奨）</span>
+Your identification has been saved in <span class="path">C:\Users\you\.ssh\id_ed25519</span>
+Your public key has been saved in <span class="path">C:\Users\you\.ssh\id_ed25519.pub</span></code></pre>
+        <div class="tip warn" style="margin-top: 8px;">
+          <strong>Windows 特有の罠 — パーミッション:</strong> Linux の <code>chmod 600</code> に相当する処理を <code>icacls</code> で行います。
+          緩いと OpenSSH が <code>Permissions for '…id_ed25519' are too open.</code> で鍵読み込みを拒否します。
+        </div>
+<pre><code><span class="cmt"># 継承を切って自分だけ Read を許可（Linux の chmod 600 相当）</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">icacls</span> <span class="str">"$env:USERPROFILE\.ssh\id_ed25519"</span> /inheritance:r
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">icacls</span> <span class="str">"$env:USERPROFILE\.ssh\id_ed25519"</span> /grant:r <span class="str">"$($env:USERNAME):(R)"</span></code></pre>
+      </div>
+
+      <div class="os-variant v-mac">
+        <span class="os-chip mac">🍎 macOS（Terminal / zsh）</span>
+<pre><code><span class="cmt"># macOS は OpenSSH が最初から入っている</span>
+<span class="prompt">$</span> <span class="cmd">mkdir</span> -p ~/.ssh &amp;&amp; <span class="cmd">chmod</span> 700 ~/.ssh
+
+<span class="prompt">$</span> <span class="cmd">ssh-keygen</span> -t ed25519 -C <span class="str">"mac-for-github"</span>
+Generating public/private ed25519 key pair.
+Enter file in which to save the key (/Users/you/.ssh/id_ed25519): <span class="cmt">（そのまま Enter）</span>
+Enter passphrase (empty for no passphrase): <span class="cmt">（強めのパスフレーズを推奨）</span>
+Your identification has been saved in <span class="path">/Users/you/.ssh/id_ed25519</span>
+Your public key has been saved in <span class="path">/Users/you/.ssh/id_ed25519.pub</span></code></pre>
+      </div>
+
+      <div class="tip warn">
+        <strong>パスフレーズは空にしないこと。</strong> 鍵ファイルが流出した瞬間に GitHub アカウントが乗っ取られます。
+        <code>ssh-agent</code>（後述）と組み合わせれば入力回数は 1 日 1 回に抑えられるので、実用上の負担はほぼありません。
+      </div>
+    </li>
+
+    <li>
+      <div class="step-title">Step 2. 公開鍵を表示してコピー</div>
+      <p><code>.pub</code> が付く方が公開鍵。中身をそのまま GitHub に貼り付けます。</p>
+
+      <div class="os-variant v-linux">
+        <span class="os-chip linux">🐧 Linux</span>
+<pre><code><span class="prompt">$</span> <span class="cmd">cat</span> ~/.ssh/id_ed25519.pub
+<span class="out">ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... linux-server-for-github</span>
+
+<span class="cmt"># xclip があればクリップボードに直接コピー可</span>
+<span class="prompt">$</span> <span class="cmd">cat</span> ~/.ssh/id_ed25519.pub | <span class="cmd">xclip</span> -selection clipboard</code></pre>
+      </div>
+
+      <div class="os-variant v-windows">
+        <span class="os-chip windows">🪟 Windows（PowerShell）</span>
+<pre><code><span class="ps-prompt">PS&gt;</span> <span class="cmd">Get-Content</span> <span class="str">"$env:USERPROFILE\.ssh\id_ed25519.pub"</span>
+<span class="out">ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... windows-pc-for-github</span>
+
+<span class="cmt"># そのままクリップボードへ</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">Get-Content</span> <span class="str">"$env:USERPROFILE\.ssh\id_ed25519.pub"</span> | <span class="cmd">Set-Clipboard</span></code></pre>
+      </div>
+
+      <div class="os-variant v-mac">
+        <span class="os-chip mac">🍎 macOS</span>
+<pre><code><span class="prompt">$</span> <span class="cmd">cat</span> ~/.ssh/id_ed25519.pub
+<span class="out">ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI... mac-for-github</span>
+
+<span class="cmt"># pbcopy で直接クリップボードへ</span>
+<span class="prompt">$</span> <span class="cmd">pbcopy</span> &lt; ~/.ssh/id_ed25519.pub</code></pre>
+      </div>
+    </li>
+
+    <li>
+      <div class="step-title">Step 3. GitHub に公開鍵を登録</div>
+      <p>別端末のブラウザから <code>https://github.com/settings/ssh/new</code> を開き、上でコピーした文字列を貼り付けて保存。
+      Title は「work-laptop」「home-mac」など<strong>どのマシンの鍵か</strong>を示す名前に。</p>
+
+      <div class="tip">
+        <strong>Key type は何を選ぶ？</strong>
+        <p style="margin: 6px 0 10px;">GitHub の「Add new SSH Key」画面には <code>Key type</code> というドロップダウンがあり、2 つの選択肢があります。</p>
+        <table>
+          <thead>
+            <tr><th>Key type</th><th>用途</th><th>いつ選ぶ？</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Authentication Key</strong><br>（認証キー）</td>
+              <td><code>git push</code> / <code>git pull</code> / <code>git clone</code> など、<strong>リポジトリへのアクセス認証</strong>に使う鍵</td>
+              <td>通常の push 認証が目的なら<strong>こちら</strong></td>
+            </tr>
+            <tr>
+              <td><strong>Signing Key</strong><br>（署名キー）</td>
+              <td>コミットやタグに SSH 署名を付けて<strong>「本人が作った」ことを証明</strong>するための鍵（Git 2.34+ の機能）</td>
+              <td>コミット一覧に <code>Verified</code> バッジを付けたい／署名付きコミット必須の運用に参加するとき</td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="margin: 6px 0 0;">
+          このページの目的（CLI から <code>git push</code> できるようにする）では <strong>Authentication Key</strong> を選べば OK。
+          あとからコミット署名もしたくなったら、<strong>同じ公開鍵をもう一度 Signing Key として追加登録</strong>すれば両用途に使えます（1 つの鍵を 2 回登録する形）。
+        </p>
+      </div>
+
+      <div class="tip">
+        <strong>GitHub に登録が必要なのは公開鍵だけ。</strong> 秘密鍵（<code>.pub</code> が付かない方）は絶対に渡さない、コピーしない、ログに出さない。
+      </div>
+    </li>
+
+    <li>
+      <div class="step-title">Step 4. 接続テスト</div>
+      <p>どの OS でも同じコマンドで確認できます。</p>
+<pre><code><span class="prompt">$</span> <span class="cmd">ssh</span> -T git@github.com
+<span class="cmt"># 初回は以下のように fingerprint を訊かれる</span>
+The authenticity of host 'github.com (140.82.112.3)' can't be established.
+ED25519 key fingerprint is SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU.
+Are you sure you want to continue connecting (yes/no)? <span class="str">yes</span>
+
+<span class="cmt"># 成功するとこう返ってくる（shell は開かない）</span>
+<span class="out">Hi yourname! You've successfully authenticated, but GitHub does not provide shell access.</span></code></pre>
+    </li>
+
+    <li>
+      <div class="step-title">Step 5. リモート URL を SSH 形式に切り替える</div>
+      <p>既にクローン済みのリポジトリなら、<code>remote set-url</code> で HTTPS→SSH に変えるだけ。どの OS でも同じ。</p>
+<pre><code><span class="prompt">$</span> <span class="cmd">git</span> remote -v
+<span class="out">origin  https://github.com/you/repo.git (fetch)</span>
+<span class="out">origin  https://github.com/you/repo.git (push)</span>
+
+<span class="prompt">$</span> <span class="cmd">git</span> remote set-url origin git@github.com:you/repo.git
+
+<span class="prompt">$</span> <span class="cmd">git</span> push
+<span class="out">Enumerating objects: 5, done.</span>
+<span class="out">To github.com:you/repo.git</span>
+<span class="out">   abcd123..efgh456  main -&gt; main</span></code></pre>
+    </li>
+
+    <li>
+      <div class="step-title">Step 6. ssh-agent で入力回数を減らす（任意、強く推奨）</div>
+
+      <div class="os-variant v-linux">
+        <span class="os-chip linux">🐧 Linux</span>
+<pre><code><span class="cmt"># セッション開始時に一度だけパスフレーズを入力</span>
+<span class="prompt">$</span> <span class="cmd">eval</span> <span class="str">"$(ssh-agent -s)"</span>
+Agent pid 12345
+
+<span class="prompt">$</span> <span class="cmd">ssh-add</span> ~/.ssh/id_ed25519
+Enter passphrase for /home/you/.ssh/id_ed25519: <span class="cmt">（ここだけ入力）</span>
+Identity added: /home/you/.ssh/id_ed25519
+
+<span class="cmt"># これ以降 push/pull/fetch はすべてノーパス</span></code></pre>
+        <p><code>~/.bashrc</code> に書けばログインごとに自動起動可。ログイン時のパスフレーズ入力が嫌なら <code>keychain</code> パッケージを併用するのが定番。</p>
+      </div>
+
+      <div class="os-variant v-windows">
+        <span class="os-chip windows">🪟 Windows（PowerShell — 管理者で一度だけ）</span>
+<pre><code><span class="cmt"># ssh-agent は Windows サービスとして同梱されているが、既定で「無効」</span>
+<span class="cmt"># サービスを「自動起動」にして起動</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">Set-Service</span> -Name ssh-agent -StartupType Automatic
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">Start-Service</span> ssh-agent
+
+<span class="cmt"># 鍵を登録（パスフレーズは一度だけ入力）</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">ssh-add</span> <span class="str">"$env:USERPROFILE\.ssh\id_ed25519"</span>
+Enter passphrase for C:\Users\you\.ssh\id_ed25519:
+Identity added: C:\Users\you\.ssh\id_ed25519</code></pre>
+        <div class="tip ok" style="margin-top: 8px;">
+          <strong>Windows の強み:</strong> 登録した鍵は <strong>DPAPI で暗号化されてレジストリ</strong>
+          （<code>HKCU\Software\OpenSSH\Agent\Keys</code>）に保存されるため、PC を再起動しても覚えていてくれます。
+          ログインユーザーでないと復号できない作りなので、他ユーザーからは読めません。
+        </div>
+      </div>
+
+      <div class="os-variant v-mac">
+        <span class="os-chip mac">🍎 macOS</span>
+<pre><code><span class="cmt"># macOS では ssh-agent は launchd で自動起動済み</span>
+<span class="cmt"># キーチェーンと連携して鍵を保存（再起動後も有効）</span>
+<span class="prompt">$</span> <span class="cmd">ssh-add</span> --apple-use-keychain ~/.ssh/id_ed25519
+Enter passphrase for /Users/you/.ssh/id_ed25519: <span class="cmt">（一度だけ）</span>
+Identity added: /Users/you/.ssh/id_ed25519
+
+<span class="cmt"># macOS Monterey 以前は --apple-use-keychain ではなく -K</span></code></pre>
+        <div class="tip" style="margin-top: 8px;">
+          <strong>~/.ssh/config で自動化する定番形:</strong>
+<pre style="margin-top: 8px;"><code><span class="key">Host</span> github.com
+  <span class="key">UseKeychain</span> yes
+  <span class="key">AddKeysToAgent</span> yes
+  <span class="key">IdentityFile</span> ~/.ssh/id_ed25519</code></pre>
+          これで Terminal を再起動してもパスフレーズを訊かれません。
+        </div>
+      </div>
+    </li>
+  </ol>
+
+  <h3>~/.ssh/config の書き方（複数鍵の使い分け）</h3>
+  <p>鍵を複数持つ場合、どのホストにどの鍵を使うかを明示します。</p>
+
+  <div class="os-variant v-linux">
+    <span class="os-chip linux">🐧 Linux — <code>~/.ssh/config</code></span>
+<pre><code><span class="key">Host</span> github.com
+  <span class="key">HostName</span> github.com
+  <span class="key">User</span> git
+  <span class="key">IdentityFile</span> ~/.ssh/id_ed25519
+  <span class="key">IdentitiesOnly</span> yes</code></pre>
+<pre><code><span class="cmt"># 作成後はパーミッションを 600 に</span>
+<span class="prompt">$</span> <span class="cmd">chmod</span> 600 ~/.ssh/config</code></pre>
+  </div>
+
+  <div class="os-variant v-windows">
+    <span class="os-chip windows">🪟 Windows — <code>%USERPROFILE%\.ssh\config</code></span>
+<pre><code><span class="cmt"># メモ帳やお好みのエディタで作成</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">notepad</span> <span class="str">"$env:USERPROFILE\.ssh\config"</span></code></pre>
+<pre><code><span class="key">Host</span> github.com
+  <span class="key">HostName</span> github.com
+  <span class="key">User</span> git
+  <span class="key">IdentityFile</span> ~/.ssh/id_ed25519
+  <span class="key">IdentitiesOnly</span> yes</code></pre>
+    <div class="tip warn" style="margin-top: 8px;">
+      <strong>Windows でも <code>IdentityFile</code> は <code>~/</code> 表記で書ける。</strong> OpenSSH が自動で <code>%USERPROFILE%</code> に展開します。
+      <code>C:\Users\you\...</code> と絶対パスで書いても OK。
+    </div>
+  </div>
+
+  <div class="os-variant v-mac">
+    <span class="os-chip mac">🍎 macOS — <code>~/.ssh/config</code></span>
+<pre><code><span class="key">Host</span> github.com
+  <span class="key">HostName</span> github.com
+  <span class="key">User</span> git
+  <span class="key">IdentityFile</span> ~/.ssh/id_ed25519
+  <span class="key">UseKeychain</span> yes
+  <span class="key">AddKeysToAgent</span> yes
+  <span class="key">IdentitiesOnly</span> yes</code></pre>
+<pre><code><span class="prompt">$</span> <span class="cmd">chmod</span> 600 ~/.ssh/config</code></pre>
+  </div>
+
+  <h3>よくあるトラブル</h3>
+  <div class="tip warn">
+    <strong>Permission denied (publickey) と言われる:</strong>
+    <div class="os-variant v-linux">
+      <ol style="margin: 6px 0 0 1.2em;">
+        <li><code>ls -la ~/.ssh/</code> でパーミッションが <code>700</code>（ディレクトリ）／ <code>600</code>（秘密鍵）か確認</li>
+        <li><code>ssh -vT git@github.com</code> でどの鍵を試しているかログを見る</li>
+        <li>複数鍵があるなら <code>~/.ssh/config</code> に明示する</li>
+      </ol>
+    </div>
+    <div class="os-variant v-windows">
+      <ol style="margin: 6px 0 0 1.2em;">
+        <li><code>icacls "$env:USERPROFILE\.ssh\id_ed25519"</code> で ACL を確認。自分以外にアクセス権があれば冒頭の手順で絞る</li>
+        <li><code>ssh -vT git@github.com</code> でどの鍵を試しているかログを見る</li>
+        <li>複数 SSH クライアント（Git Bash 同梱版と Windows OpenSSH）が並存している場合、PATH でどちらが先かを確認: <code>where ssh</code></li>
+      </ol>
+    </div>
+    <div class="os-variant v-mac">
+      <ol style="margin: 6px 0 0 1.2em;">
+        <li><code>ls -la ~/.ssh/</code> でパーミッションが <code>700</code> / <code>600</code> か確認</li>
+        <li><code>ssh -vT git@github.com</code> でどの鍵を試しているかログを見る</li>
+        <li>複数鍵があるなら <code>~/.ssh/config</code> に明示する</li>
+      </ol>
+    </div>
+  </div>
+
+  <div class="tip warn">
+    <strong>22 番ポートが閉じている（社内ファイアウォール等）:</strong>
+    GitHub は <code>ssh.github.com:443</code> を SSH 用に開放しています。<code>~/.ssh/config</code> で以下を設定すれば HTTPS と同じ経路で SSH が通ります（OS 共通）。
+<pre style="margin-top: 8px;"><code><span class="key">Host</span> github.com
+  <span class="key">HostName</span> ssh.github.com
+  <span class="key">User</span> git
+  <span class="key">Port</span> 443</code></pre>
+  </div>
+</section>
+
+<!-- ===================== 方法 2: PAT ===================== -->
+<section>
+  <h2>方法 ② — Personal Access Token (PAT) を使う</h2>
+  <p>
+    HTTPS リモートを維持したまま、パスワードの代わりに「GitHub が発行したトークン文字列」を入れる方式。
+    シェルスクリプトや CI で扱いやすいですが、<strong>トークンは見たら漏れたも同然</strong>なので保管には神経を使います。
+  </p>
+
+  <h3>PAT の種類</h3>
+  <table>
+    <thead>
+      <tr><th>種類</th><th>特徴</th><th>おすすめ用途</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Fine-grained PAT</strong><br>（推奨）</td>
+        <td>リポジトリ単位＆権限単位で絞れる。期限必須（最大 366 日）。</td>
+        <td>個人用の多くのケース</td>
+      </tr>
+      <tr>
+        <td>Classic PAT</td>
+        <td>スコープが粗く、アカウント全体に影響。組織 SSO 非対応リポジトリに必要なことがある。</td>
+        <td>レガシー互換</td>
+      </tr>
+      <tr>
+        <td>GitHub App Installation Token</td>
+        <td>Bot 用。短寿命（1 時間）で自動発行。</td>
+        <td>本格的な Bot / CI</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>セットアップ手順</h3>
+  <ol class="steps">
+    <li>
+      <div class="step-title">Step 1. 別端末のブラウザで PAT を発行</div>
+      <p><code>https://github.com/settings/tokens?type=beta</code>（Fine-grained）を開き、<strong>Repository access</strong>・<strong>Permissions → Contents: Read and write</strong>・<strong>Expiration</strong>（30〜90 日推奨）を設定して発行。
+      表示された <code>github_pat_…</code> の文字列は<strong>その画面を閉じると二度と表示されません</strong>。必ずコピー。</p>
+    </li>
+    <li>
+      <div class="step-title">Step 2. git push 時に「Username / Password」に入れる</div>
+<pre><code><span class="prompt">$</span> <span class="cmd">git</span> push
+Username for <span class="str">'https://github.com'</span>: yourname
+Password for <span class="str">'https://yourname@github.com'</span>: <span class="cmt">（ここに PAT を貼る）</span>
+<span class="out">Everything up-to-date</span></code></pre>
+    </li>
+    <li>
+      <div class="step-title">Step 3. credential helper を設定（OS によって推奨が大きく異なる）</div>
+
+      <div class="os-variant v-linux">
+        <span class="os-chip linux">🐧 Linux — 3 択から選ぶ</span>
+<pre><code><span class="cmt"># 選択肢 A: ~/.git-credentials に平文保存（共用サーバでは厳禁）</span>
+<span class="prompt">$</span> <span class="cmd">git</span> config --global credential.helper store
+
+<span class="cmt"># 選択肢 B: メモリにキャッシュ（既定は 15 分、下記は 8 時間）</span>
+<span class="prompt">$</span> <span class="cmd">git</span> config --global credential.helper <span class="str">'cache --timeout=28800'</span>
+
+<span class="cmt"># 選択肢 C: libsecret 経由で gnome-keyring に保存（GUI セッション必須）</span>
+<span class="prompt">$</span> <span class="cmd">sudo</span> apt install libsecret-1-0 libsecret-1-dev
+<span class="prompt">$</span> <span class="cmd">make</span> -C /usr/share/doc/git/contrib/credential/libsecret
+<span class="prompt">$</span> <span class="cmd">git</span> config --global credential.helper \
+    /usr/share/doc/git/contrib/credential/libsecret/git-credential-libsecret</code></pre>
+        <div class="tip danger">
+          <strong>store は「復号できる必要すらない平文 YAML」です。</strong>
+          <code>~/.git-credentials</code> の中身はそのまま PAT が書かれているので、root や他ユーザーから読める環境では絶対に使わないこと。
+          少しでも共用性のあるサーバでは <code>cache</code> か SSH 鍵にしてください。
+        </div>
+      </div>
+
+      <div class="os-variant v-windows">
+        <span class="os-chip windows">🪟 Windows — Git Credential Manager を使う（Git for Windows に同梱）</span>
+<pre><code><span class="cmt"># Git for Windows を入れていれば GCM がデフォルトで有効</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">git</span> config --global credential.helper
+<span class="out">manager</span>   <span class="cmt"># または manager-core</span>
+
+<span class="cmt"># 初回 push 時にポップアップ（ブラウザ / Device Flow）で OAuth 認証</span>
+<span class="cmt"># 以降は資格情報マネージャーに自動保存（DPAPI で暗号化）</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">git</span> push
+<span class="out">info: please complete authentication in your browser...</span>
+<span class="out">info: Authentication succeeded.</span></code></pre>
+<pre><code><span class="cmt"># 資格情報マネージャーに保存されているか確認</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">cmdkey</span> /list:git:https://github.com
+Currently stored credentials for git:https://github.com:
+    Target: git:https://github.com
+    Type: Generic
+    User: yourname</code></pre>
+        <div class="tip ok">
+          <strong>Windows の強み:</strong> GCM は <strong>DPAPI</strong> 経由で資格情報マネージャーに保存するため、
+          ログインユーザー以外には復号不可。Linux の <code>store</code>（平文 YAML）のような事故が起きにくい作りです。
+        </div>
+      </div>
+
+      <div class="os-variant v-mac">
+        <span class="os-chip mac">🍎 macOS — osxkeychain（Git に標準同梱）</span>
+<pre><code><span class="cmt"># Homebrew 版 / Xcode Command Line Tools 版の git に同梱されている</span>
+<span class="prompt">$</span> <span class="cmd">git</span> config --global credential.helper osxkeychain
+
+<span class="cmt"># 初回 push で PAT を入れると、以降は login.keychain から自動取得</span>
+<span class="prompt">$</span> <span class="cmd">git</span> push
+Username for <span class="str">'https://github.com'</span>: yourname
+Password for <span class="str">'https://yourname@github.com'</span>: <span class="cmt">（PAT を貼る）</span>
+<span class="out">Everything up-to-date</span>
+
+<span class="cmt"># 保存済みを確認（Keychain Access.app でも GUI 確認可）</span>
+<span class="prompt">$</span> <span class="cmd">security</span> find-internet-password -s github.com</code></pre>
+        <div class="tip">
+          <strong>または GCM:</strong> <code>brew install --cask git-credential-manager</code> で Microsoft 製の GCM も使えます。
+          複数 Git ホストを使うなら GCM が便利。
+        </div>
+      </div>
+    </li>
+
+    <li>
+      <div class="step-title">Step 4. あるいは URL に埋め込む（非推奨だがワンショット向け）</div>
+<pre><code><span class="cmt"># 履歴とリモートに PAT が残るので、基本やらない。CI で環境変数を使う場合のイメージとして。</span>
+<span class="prompt">$</span> <span class="cmd">git</span> clone https://<span class="str">${GITHUB_TOKEN}</span>@github.com/you/repo.git</code></pre>
+      <p>CI ならこの形で環境変数から流し込むのが定番です。手元のターミナルで打つと履歴や <code>git remote -v</code> に残ってしまうので注意。</p>
+    </li>
+  </ol>
+
+  <h3>PAT を更新・失効させる</h3>
+
+  <div class="os-variant v-linux">
+    <span class="os-chip linux">🐧 Linux</span>
+<pre><code><span class="cmt"># 保存されている認証情報を破棄（次回 push で再入力が要求される）</span>
+<span class="prompt">$</span> <span class="cmd">git</span> credential reject &lt;&lt;&lt; <span class="str">$'protocol=https\nhost=github.com\n'</span>
+
+<span class="cmt"># store を使っている場合はファイル削除でもOK</span>
+<span class="prompt">$</span> <span class="cmd">rm</span> ~/.git-credentials</code></pre>
+  </div>
+
+  <div class="os-variant v-windows">
+    <span class="os-chip windows">🪟 Windows</span>
+<pre><code><span class="cmt"># 資格情報マネージャーのエントリを直接削除</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">cmdkey</span> /delete:git:https://github.com
+
+<span class="cmt"># GUI でも可: Win+R → control /name Microsoft.CredentialManager</span></code></pre>
+  </div>
+
+  <div class="os-variant v-mac">
+    <span class="os-chip mac">🍎 macOS</span>
+<pre><code><span class="cmt"># Keychain から GitHub の Internet password を削除</span>
+<span class="prompt">$</span> <span class="cmd">security</span> delete-internet-password -s github.com
+
+<span class="cmt"># あるいは Keychain Access.app → "github.com" で検索して削除</span></code></pre>
+  </div>
+  <p>GitHub 側で revoke する場合は、発行元と同じ設定画面で該当トークンの <strong>Delete</strong> をクリック。</p>
+</section>
+
+<!-- ===================== 方法 3: gh CLI ===================== -->
+<section>
+  <h2>方法 ③ — gh CLI のデバイスフローで OAuth を通す</h2>
+  <p>
+    GitHub 公式の CLI <code>gh</code> は、ブラウザが開けない端末のために<strong>デバイスコードフロー</strong>を備えています。
+    端末側では 8 桁の短いコードが表示されるだけ、認証自体は手元のスマホや別 PC のブラウザで行います。
+  </p>
+
+  <h3>gh CLI のインストール</h3>
+
+  <div class="os-variant v-linux">
+    <span class="os-chip linux">🐧 Linux</span>
+<pre><code><span class="cmt"># Ubuntu / Debian</span>
+<span class="prompt">$</span> <span class="cmd">curl</span> -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+    | <span class="cmd">sudo</span> dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
+<span class="prompt">$</span> <span class="cmd">echo</span> <span class="str">"deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main"</span> \
+    | <span class="cmd">sudo</span> tee /etc/apt/sources.list.d/github-cli.list
+<span class="prompt">$</span> <span class="cmd">sudo</span> apt update &amp;&amp; <span class="cmd">sudo</span> apt install gh
+
+<span class="cmt"># RHEL / Fedora</span>
+<span class="prompt">$</span> <span class="cmd">sudo</span> dnf install gh
+
+<span class="cmt"># Arch</span>
+<span class="prompt">$</span> <span class="cmd">sudo</span> pacman -S github-cli</code></pre>
+  </div>
+
+  <div class="os-variant v-windows">
+    <span class="os-chip windows">🪟 Windows</span>
+<pre><code><span class="cmt"># winget（Windows 10/11 標準）</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">winget</span> install --id GitHub.cli
+
+<span class="cmt"># Scoop</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">scoop</span> install gh
+
+<span class="cmt"># Chocolatey</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">choco</span> install gh
+
+<span class="cmt"># MSI インストーラは https://cli.github.com/ から直接</span></code></pre>
+  </div>
+
+  <div class="os-variant v-mac">
+    <span class="os-chip mac">🍎 macOS</span>
+<pre><code><span class="cmt"># Homebrew が一番楽</span>
+<span class="prompt">$</span> <span class="cmd">brew</span> install gh
+
+<span class="cmt"># MacPorts</span>
+<span class="prompt">$</span> <span class="cmd">sudo</span> port install gh</code></pre>
+  </div>
+
+  <h3>デバイスフローでサインイン（OS 共通）</h3>
+  <div class="terminal">
+    <div class="bar"><span class="dot r"></span><span class="dot y"></span><span class="dot g"></span><span class="ttl">~</span></div>
+<pre><code><span class="prompt">$</span> <span class="cmd">gh</span> auth login
+? What account do you want to log into?  <span class="str">GitHub.com</span>
+? What is your preferred protocol for Git operations?  <span class="str">HTTPS</span>
+? Authenticate Git with your GitHub credentials?  <span class="str">Yes</span>
+? How would you like to authenticate GitHub CLI?  <span class="str">Login with a web browser</span>
+
+<span class="out">! First copy your one-time code: <span class="key">1A2B-3C4D</span></span>
+<span class="out">Press Enter to open github.com in your browser...</span>
+<span class="cmt">（Enter を押すとブラウザ起動を試みるが、無ければそのまま以下の URL に）</span>
+
+<span class="out">Open this URL in another device: https://github.com/login/device</span>
+<span class="out">Enter code: 1A2B-3C4D</span>
+
+<span class="cmt">--- 別端末のブラウザで URL を開き、コードを入力 ---</span>
+
+<span class="out">✓ Authentication complete.</span>
+<span class="out">- gh config set -h github.com git_protocol https</span>
+<span class="out">✓ Configured git protocol</span>
+<span class="out">✓ Logged in as yourname</span></code></pre>
+  </div>
+
+  <h3>トークンの保存場所（OS 別）</h3>
+
+  <div class="os-variant v-linux">
+    <span class="os-chip linux">🐧 Linux</span>
+<pre><code><span class="cmt"># gh が保管している設定ファイル</span>
+<span class="path">~/.config/gh/hosts.yml</span>
+
+<span class="cmt"># 中身（※パスワード相当なので 0600 で保護）</span>
+github.com:
+  users:
+    yourname:
+      oauth_token: <span class="out">ghu_xxxxxxxxxxxxxxxxxxxx</span>
+  git_protocol: https</code></pre>
+    <div class="tip warn" style="margin-top: 8px;">
+      <strong>keyring が動いていないサーバでは平文 YAML。</strong> <code>chmod 600</code> が保たれているか確認。
+      dotfiles リポジトリへのバックアップ事故に要注意。
+    </div>
+  </div>
+
+  <div class="os-variant v-windows">
+    <span class="os-chip windows">🪟 Windows</span>
+<pre><code><span class="cmt"># gh の設定ファイル</span>
+<span class="path">%APPDATA%\GitHub CLI\hosts.yml</span>
+
+<span class="cmt"># gh auth login 時に "Store your credential in secure storage?" で Yes を選ぶと</span>
+<span class="cmt"># 資格情報マネージャー (DPAPI) に格納される</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">cmdkey</span> /list | <span class="cmd">Select-String</span> gh:github.com</code></pre>
+  </div>
+
+  <div class="os-variant v-mac">
+    <span class="os-chip mac">🍎 macOS</span>
+<pre><code><span class="cmt"># gh の設定ファイル</span>
+<span class="path">~/.config/gh/hosts.yml</span>
+
+<span class="cmt"># secure storage を選ぶと login.keychain に格納</span>
+<span class="prompt">$</span> <span class="cmd">security</span> find-internet-password -s github.com</code></pre>
+  </div>
+
+  <h3>gh が credential helper として自動登録される</h3>
+  <p>
+    <code>gh auth login</code> は内部で「自分自身を credential helper として登録」するので、
+    以降の <code>git push</code>（HTTPS リモート）は自動的に <code>gh</code> のトークンが使われます。
+  </p>
+<pre><code><span class="cmt"># どの helper が動いているか確認（OS 共通）</span>
+<span class="prompt">$</span> <span class="cmd">git</span> config --get-all credential.helper
+<span class="out">!/usr/bin/gh auth git-credential</span>   <span class="cmt"># Linux 例</span>
+<span class="out">!'C:\\Program Files\\GitHub CLI\\gh.exe' auth git-credential</span>   <span class="cmt"># Windows 例</span></code></pre>
+</section>
+
+<!-- ===================== 方法 4: Deploy Key ===================== -->
+<section>
+  <h2>方法 ④ — Deploy Key（リポジトリ専用 SSH 鍵）</h2>
+  <p>
+    アカウントではなく「特定リポジトリ 1 個だけ」に紐づく SSH 鍵。
+    鍵が漏れても被害がそのリポジトリに限定され、<strong>ユーザーアカウントを経由しない</strong>のが最大の利点。CI / デプロイ用途の定番です。
+  </p>
+
+  <h3>セットアップ手順</h3>
+  <ol class="steps">
+    <li>
+      <div class="step-title">Step 1. リポジトリ用の鍵を作る（個人鍵と分けるのが肝）</div>
+
+      <div class="os-variant v-linux">
+<pre><code><span class="prompt">$</span> <span class="cmd">ssh-keygen</span> -t ed25519 -C <span class="str">"deploy-key-repo-xxx"</span> \
+    -f ~/.ssh/id_ed25519_repo_xxx -N <span class="str">""</span>
+<span class="cmt"># -f で鍵のパス分離、-N "" でパスフレーズなし（CI 用途なら可）</span></code></pre>
+      </div>
+
+      <div class="os-variant v-windows">
+<pre><code><span class="ps-prompt">PS&gt;</span> <span class="cmd">ssh-keygen</span> -t ed25519 -C <span class="str">"deploy-key-repo-xxx"</span> `
+    -f <span class="str">"$env:USERPROFILE\.ssh\id_ed25519_repo_xxx"</span> -N <span class="str">""</span>
+
+<span class="cmt"># 権限を自分だけに絞る</span>
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">icacls</span> <span class="str">"$env:USERPROFILE\.ssh\id_ed25519_repo_xxx"</span> /inheritance:r
+<span class="ps-prompt">PS&gt;</span> <span class="cmd">icacls</span> <span class="str">"$env:USERPROFILE\.ssh\id_ed25519_repo_xxx"</span> /grant:r <span class="str">"$($env:USERNAME):(R)"</span></code></pre>
+      </div>
+
+      <div class="os-variant v-mac">
+<pre><code><span class="prompt">$</span> <span class="cmd">ssh-keygen</span> -t ed25519 -C <span class="str">"deploy-key-repo-xxx"</span> \
+    -f ~/.ssh/id_ed25519_repo_xxx -N <span class="str">""</span></code></pre>
+      </div>
+    </li>
+
+    <li>
+      <div class="step-title">Step 2. リポジトリに公開鍵を登録</div>
+      <p><code>https://github.com/you/repo/settings/keys/new</code> を別端末で開き、<code>.pub</code> の中身を貼り付け。
+      push させたいなら <strong>Allow write access</strong> をチェック。</p>
+    </li>
+
+    <li>
+      <div class="step-title">Step 3. ~/.ssh/config でリポジトリごとのホストエイリアスを作る</div>
+
+      <div class="os-variant v-linux">
+<pre><code><span class="cmt"># ~/.ssh/config に追記</span>
+<span class="key">Host</span> github-repo-xxx
+  <span class="key">HostName</span> github.com
+  <span class="key">User</span> git
+  <span class="key">IdentityFile</span> ~/.ssh/id_ed25519_repo_xxx
+  <span class="key">IdentitiesOnly</span> yes</code></pre>
+      </div>
+
+      <div class="os-variant v-windows">
+<pre><code><span class="cmt"># %USERPROFILE%\.ssh\config に追記（~ 表記でも絶対パスでも可）</span>
+<span class="key">Host</span> github-repo-xxx
+  <span class="key">HostName</span> github.com
+  <span class="key">User</span> git
+  <span class="key">IdentityFile</span> ~/.ssh/id_ed25519_repo_xxx
+  <span class="key">IdentitiesOnly</span> yes</code></pre>
+      </div>
+
+      <div class="os-variant v-mac">
+<pre><code><span class="cmt"># ~/.ssh/config に追記</span>
+<span class="key">Host</span> github-repo-xxx
+  <span class="key">HostName</span> github.com
+  <span class="key">User</span> git
+  <span class="key">IdentityFile</span> ~/.ssh/id_ed25519_repo_xxx
+  <span class="key">IdentitiesOnly</span> yes</code></pre>
+      </div>
+    </li>
+
+    <li>
+      <div class="step-title">Step 4. リモート URL をエイリアスに置き換えて clone / push</div>
+<pre><code><span class="prompt">$</span> <span class="cmd">git</span> clone git@<span class="key">github-repo-xxx</span>:you/repo.git
+<span class="prompt">$</span> <span class="cmd">git</span> -C repo push</code></pre>
+    </li>
+  </ol>
+
+  <div class="tip ok">
+    <strong>Deploy Key の強み:</strong>
+    <ul style="margin: 6px 0 0 1.2em;">
+      <li>ユーザーを退職・削除してもリポジトリの鍵はそのまま稼働</li>
+      <li>鍵を複数リポジトリに付けられるが、1 鍵＝1 リポジトリにすると漏洩時の被害を最小化できる</li>
+      <li>Organization を跨いだリポジトリでも同じ鍵が使いまわせる（注意: 使い回すと追跡が難しくなるので原則避ける）</li>
+    </ul>
+  </div>
+</section>
+
+<section>
+  <h2>運用で気をつけたいポイント</h2>
+
+  <div class="tip warn">
+    <strong>Q. SSH 鍵を作ったのに push で毎回パスフレーズを訊かれて煩わしい</strong><br>
+    <span class="os-variant v-linux">A. <code>ssh-agent</code> が起動していない可能性が高い。<code>eval "$(ssh-agent -s)" &amp;&amp; ssh-add</code> を <code>~/.bashrc</code> に仕込むか、<code>keychain</code> パッケージで永続化。</span>
+    <span class="os-variant v-windows">A. <code>ssh-agent</code> サービスが停止している。<code>Set-Service ssh-agent -StartupType Automatic</code> で自動起動に設定後、<code>Start-Service ssh-agent</code> → <code>ssh-add</code>。</span>
+    <span class="os-variant v-mac">A. <code>ssh-add --apple-use-keychain</code> で鍵をキーチェーンに登録するか、<code>~/.ssh/config</code> に <code>UseKeychain yes</code> / <code>AddKeysToAgent yes</code> を書く。</span>
+  </div>
+
+  <div class="tip warn">
+    <strong>Q. PAT の期限切れに気づかず CI が突然止まった</strong><br>
+    A. GitHub は期限 7 日前にメールで通知。CI を組むなら<strong>期限の 90 日前後でローテートするカレンダータスク</strong>を仕込むか、
+    GitHub App のインストールトークン（1 時間の短寿命＋自動更新）に移行するのが安全。
+  </div>
+
+  <div class="tip warn">
+    <strong>Q. 複数アカウントを使い分けたい</strong><br>
+    A. <code>~/.ssh/config</code> で <code>Host github-personal</code> / <code>Host github-work</code> のエイリアスを作り、
+    リポジトリごとにリモート URL を <code>git@github-personal:...</code> / <code>git@github-work:...</code> と書き分ける。
+    HTTPS 派なら <code>credential.useHttpPath=true</code> を設定して URL 単位で credential を分ける。
+  </div>
+
+  <div class="tip danger">
+    <strong>Q. 鍵／トークンがうっかり git リポジトリに入ってしまった</strong><br>
+    A. 「push していないからセーフ」ではなく、<strong>その鍵・トークンは即 revoke</strong>する。
+    公開リポジトリに一度でも出たトークンはシークレットスキャンされ、数秒〜数分で world-readable になった前提で動く。
+  </div>
+
+  <div class="tip">
+    <strong>Q. プロキシ経由の環境で SSH が使えない</strong><br>
+    A. HTTPS 経由 SSH（<code>ssh.github.com:443</code>）を使う。
+    それすら無理なら HTTPS + PAT 一択。<code>http.proxy</code> / <code>https.proxy</code> を git に設定するのを忘れずに。
+  </div>
+
+  <div class="os-variant v-windows">
+    <div class="tip warn">
+      <strong>Q. Windows で WSL との鍵共有はどうする？</strong><br>
+      A. WSL 内の <code>~/.ssh/</code> は Windows の <code>%USERPROFILE%\.ssh\</code> とは別ディレクトリ（<code>\\wsl$\Ubuntu\home\you\.ssh\</code>）。
+      混在させるとどの鍵が使われているか分からなくなるので、<strong>使う環境（Windows OpenSSH or WSL）で完結させる</strong>のが安全。
+      どうしても共有したければ WSL の <code>~/.ssh/config</code> に <code>IdentityFile /mnt/c/Users/you/.ssh/id_ed25519</code> のようにパスを切る（パーミッションの都合で agent 経由が無難）。
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>安全運用のチェックリスト（OS 共通）</h2>
+  <ul class="checklist">
+    <li><strong>SSH 秘密鍵にはパスフレーズを設定</strong> — 鍵ファイル流出時の一次防衛線。</li>
+    <li>
+      <span class="os-variant v-linux"><strong>~/.ssh のパーミッションを確認</strong> — ディレクトリ 700、秘密鍵 600。緩いと ssh が鍵読み込みを拒否する。</span>
+      <span class="os-variant v-windows"><strong>.ssh の ACL を確認</strong> — <code>icacls</code> で自分だけに絞る。緩いと <code>Permissions ... too open</code> エラーになる。</span>
+      <span class="os-variant v-mac"><strong>~/.ssh のパーミッションを確認</strong> — ディレクトリ 700、秘密鍵 600。緩いと ssh が鍵読み込みを拒否する。</span>
+    </li>
+    <li><strong>PAT は fine-grained で最小権限・短寿命</strong> — 全権の Classic PAT を長期運用しない。</li>
+    <li>
+      <span class="os-variant v-linux"><strong>credential.helper=store を避ける</strong> — 共用サーバでは致命的。SSH 鍵か cache に倒す。</span>
+      <span class="os-variant v-windows"><strong>Git Credential Manager を使う</strong> — 既定の資格情報マネージャー保管なら DPAPI で暗号化される。</span>
+      <span class="os-variant v-mac"><strong>osxkeychain を使う</strong> — <code>credential.helper=osxkeychain</code> で login.keychain に暗号化保管。</span>
+    </li>
+    <li><strong>dotfiles リポジトリに機密ファイルを含めない</strong> — <code>.ssh/id_*</code> / <code>hosts.yml</code> / <code>.git-credentials</code> を .gitignore に。</li>
+    <li><strong>使い終わった鍵・トークンはすぐ削除</strong> — GitHub の Settings → SSH keys / Developer settings から明示的に削除。</li>
+    <li><strong>定期的に GitHub の Security log を確認</strong> — 不審な IP や未知のマシンからのアクセスがないか。</li>
+    <li><strong>CI では Deploy Key か GitHub App を優先</strong> — 個人 PAT をサービスアカウント代わりにしない。</li>
+  </ul>
+</section>
+
+<section>
+  <h2>まとめ — 1 枚表</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>シチュエーション</th>
+        <th>第一候補</th>
+        <th>理由</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>個人開発の端末で push したい</td>
+        <td><strong>SSH 鍵</strong></td>
+        <td>一度の設定で以後ノーストレス、期限切れなし</td>
+      </tr>
+      <tr>
+        <td>CI / デプロイ先が 1 リポジトリだけ触る</td>
+        <td><strong>Deploy Key</strong></td>
+        <td>被害範囲がリポジトリ内に閉じる</td>
+      </tr>
+      <tr>
+        <td>一時的に検証用 VM で試したい</td>
+        <td><strong>gh auth login</strong></td>
+        <td>デバイスフローで即完了、後で <code>gh auth logout</code> だけで片付く</td>
+      </tr>
+      <tr>
+        <td>スクリプトに認証情報を差し込みたい</td>
+        <td><strong>PAT（環境変数経由）</strong></td>
+        <td>ヘッダや URL に埋めやすく、SSH 鍵のように agent を要求しない</td>
+      </tr>
+      <tr>
+        <td>社内プロキシで 22 番が閉じている</td>
+        <td><strong>HTTPS + PAT</strong> または <strong>ssh.github.com:443</strong></td>
+        <td>443 ポートを使って通信経路を確保</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); text-align: center; color: var(--muted); font-size: 0.85rem;">
+  <a href="../../index.html" style="color: var(--accent); text-decoration: none;">← TOP に戻る</a>
+</footer>
+
+</div>
+
+<script>
+  // OS タブ切替 — body のクラスを書き換えて全 .os-variant の可視性を制御
+  (function () {
+    const STORAGE_KEY = "git-push-auth-selected-os";
+    const VALID = ["linux", "windows", "mac"];
+    const body = document.body;
+    const buttons = document.querySelectorAll(".os-btn");
+
+    function applyOS(os) {
+      if (!VALID.includes(os)) os = "linux";
+      VALID.forEach((v) => body.classList.remove("os-" + v));
+      body.classList.add("os-" + os);
+      buttons.forEach((b) => {
+        const active = b.dataset.os === os;
+        b.classList.toggle("active", active);
+        b.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      try { localStorage.setItem(STORAGE_KEY, os); } catch (e) {}
+    }
+
+    // 復元: localStorage → デフォルト linux
+    let initial = "linux";
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (VALID.includes(saved)) initial = saved;
+    } catch (e) {}
+    applyOS(initial);
+
+    buttons.forEach((b) => b.addEventListener("click", () => applyOS(b.dataset.os)));
+  })();
+</script>
+
+</body>
+</html>

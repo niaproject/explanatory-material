@@ -26,6 +26,7 @@
       --cat-github: #8957e5;
       --cat-nodejs: #cb3837;
       --cat-networking: #00a99d;
+      --cat-cloudflare: #f6821f;
     }
 
     * {
@@ -207,6 +208,7 @@
     .cat-chip.github { background: rgba(137, 87, 229, 0.15); color: var(--cat-github); border: 1px solid rgba(137, 87, 229, 0.3); }
     .cat-chip.nodejs { background: rgba(203, 56, 55, 0.15); color: var(--cat-nodejs); border: 1px solid rgba(203, 56, 55, 0.3); }
     .cat-chip.networking { background: rgba(0, 169, 157, 0.15); color: var(--cat-networking); border: 1px solid rgba(0, 169, 157, 0.3); }
+    .cat-chip.cloudflare { background: rgba(246, 130, 31, 0.15); color: var(--cat-cloudflare); border: 1px solid rgba(246, 130, 31, 0.3); }
     .update-title {
       font-weight: 500;
       font-size: 0.98rem;
@@ -254,6 +256,7 @@
     .cat-card[data-cat="github"]:hover { border-color: var(--cat-github); }
     .cat-card[data-cat="nodejs"]:hover { border-color: var(--cat-nodejs); }
     .cat-card[data-cat="networking"]:hover { border-color: var(--cat-networking); }
+    .cat-card[data-cat="cloudflare"]:hover { border-color: var(--cat-cloudflare); }
     .cat-card .cat-icon { font-size: 2.4rem; margin-bottom: 0.75rem; }
     .cat-card .cat-name {
       font-size: 1.2rem;
@@ -454,10 +457,29 @@
         icon: "🌐",
         desc: "OVS / OVN / conntrack などの仮想ネットワーク技術",
       },
+      cloudflare: {
+        name: "Cloudflare",
+        icon: "🟧",
+        desc: "Cloudflare の SSL/TLS・WAF・ボット対策などセキュリティ設定",
+      },
     };
 
     // updated は YYYY-MM-DD HH:mm:ss (ローカル時刻) でソート精度を秒まで確保
     const PAGES = [
+      {
+        title: "Cloudflare セキュリティ設定 — 暗号化最大化 / HTTPS 自動化 / ボット対策",
+        desc: "Cloudflare に乗せたドメインで最低限やるべきセキュリティ設定を 3 本柱で整理。SSL/TLS を Full (strict) に上げる手順、Always Use HTTPS と HSTS の段階的有効化、Bot Fight Mode・Browser Integrity Check・Turnstile・Rate Limiting の組み合わせ（Security Level は threat score 廃止により実質非推奨）、加えて WAF Managed Rules / DNSSEC / オリジン IP 隠蔽 / 2FA など +α 設定と最終チェックリストまで。新ダッシュボード（Security → Settings の 5 カテゴリ）に対応。",
+        url: "topics/cloudflare/cloudflare-security.html",
+        category: "cloudflare",
+        updated: "2026-04-28 13:00:00",
+      },
+      {
+        title: "CLI 環境で git push するための GitHub 認証（Linux / Windows / macOS）",
+        desc: "GUI ブラウザが制限された CLI 環境で GitHub に push するための 4 つの現実解（SSH 鍵 / PAT / gh CLI デバイスフロー / Deploy Key）を OS タブで切替可能に整理。秘密鍵の置き場所（~/.ssh vs %USERPROFILE%\\.ssh）、ssh-agent の常駐化（eval / Windows サービス / launchd+keychain）、credential helper の違い（store / GCM / osxkeychain）、icacls と chmod の対応まで OS ごとの差分を網羅。",
+        url: "topics/github/git-push-auth-cli-linux.html",
+        category: "github",
+        updated: "2026-04-21 11:00:00",
+      },
       {
         title: "conntrack -L / ovs-ofctl dump-flows / ovn-trace の使い分け",
         desc: "3 つの主要ネットワークデバッグコマンドがそれぞれ「どのレイヤ（Linux kernel / OVS OpenFlow / OVN 論理）を覗くのか」を整理。出力フォーマット分解、よく使うフィルタ、典型トラブル実例、3 コマンドを組み合わせた切り分けシナリオまで。",

@@ -1,0 +1,1204 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cloudflare セキュリティ設定 — 暗号化最大化 / HTTPS 自動化 / ボット対策 | Cloudflare 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --cf: #f6821f;
+    --cf-2: #faae40;
+    --cf-dark: #c46514;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .breadcrumb a { color: var(--accent); text-decoration: none; }
+  .breadcrumb a:hover { text-decoration: underline; }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 48px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(circle, rgba(246, 130, 31, 0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header::after {
+    content: "";
+    position: absolute;
+    bottom: -30%;
+    right: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(circle, rgba(250, 174, 64, 0.12) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header .logo-mark {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    background: linear-gradient(135deg, var(--cf), var(--cf-dark));
+    color: #fff;
+    border-radius: 16px;
+    font-size: 1.8rem;
+    font-weight: 800;
+    margin-bottom: 16px;
+    box-shadow: 0 8px 24px rgba(246, 130, 31, 0.4);
+    position: relative;
+  }
+  header h1 {
+    font-size: 2.1rem;
+    background: linear-gradient(90deg, var(--cf), var(--cf-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+    position: relative;
+  }
+  header p { color: var(--muted); font-size: 1.05rem; position: relative; max-width: 720px; margin: 0 auto; }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.55rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    user-select: none;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(180deg, var(--cf), var(--cf-2));
+    border-radius: 2px;
+  }
+  h2 .toggle-icon {
+    margin-left: auto;
+    font-size: 0.95rem;
+    color: var(--muted);
+    transition: transform 0.2s ease;
+  }
+  section.is-collapsed h2 .toggle-icon {
+    transform: rotate(-90deg);
+  }
+  section.is-collapsed h2 {
+    margin-bottom: 0;
+    border-bottom-color: transparent;
+  }
+  section.is-collapsed > :not(h2) {
+    display: none;
+  }
+  h2:hover { color: var(--cf-2); }
+  h3 { font-size: 1.18rem; margin: 22px 0 10px; color: var(--cf-2); }
+  h4 { font-size: 1.02rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--cf-2);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.88rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+
+  /* 概要カード */
+  .lead-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--cf);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+  .lead-card strong { color: var(--cf-2); }
+
+  /* 3つの柱グリッド */
+  .pillars {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .pillar-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .pillar-card::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, var(--cf), var(--cf-2));
+  }
+  .pillar-num {
+    display: inline-block;
+    background: rgba(246, 130, 31, 0.15);
+    color: var(--cf-2);
+    border: 1px solid rgba(246, 130, 31, 0.3);
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .pillar-title {
+    font-size: 1.05rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .pillar-desc {
+    color: var(--muted);
+    font-size: 0.88rem;
+  }
+
+  /* 設定ステップカード */
+  .step-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .step-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--cf), var(--cf-dark));
+    color: #fff;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.9rem;
+  }
+  .step-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .step-path {
+    margin: 8px 0 12px;
+    padding: 8px 12px;
+    background: var(--panel-2);
+    border-radius: 6px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .step-path .arrow { color: var(--cf); margin: 0 6px; }
+  .step-path .leaf { color: var(--cf-2); font-weight: 600; }
+
+  /* 値の良/悪 表示 */
+  .value-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 12px 0;
+  }
+  .value-box {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: var(--panel-2);
+  }
+  .value-box.good { border-color: rgba(63, 185, 80, 0.4); }
+  .value-box.bad  { border-color: rgba(248, 81, 73, 0.4); }
+  .value-label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 6px;
+  }
+  .value-box.good .value-label { color: var(--green); }
+  .value-box.bad  .value-label { color: var(--red); }
+  .value-name {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.92rem;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .value-note {
+    color: var(--muted);
+    font-size: 0.83rem;
+  }
+
+  /* 注意ブロック */
+  .callout {
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    border-left: 4px solid;
+  }
+  .callout.warn  { background: rgba(248, 81, 73, 0.08);  border-color: var(--red);    }
+  .callout.info  { background: rgba(88, 166, 255, 0.08); border-color: var(--accent); }
+  .callout.tip   { background: rgba(63, 185, 80, 0.08);  border-color: var(--green);  }
+  .callout strong { color: var(--text); }
+  .callout.warn strong { color: var(--red); }
+  .callout.info strong { color: var(--accent); }
+  .callout.tip  strong { color: var(--green); }
+
+  /* SSL モード比較表 */
+  .ssl-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 12px 0 24px;
+    background: var(--panel-2);
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .ssl-table th, .ssl-table td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: top;
+  }
+  .ssl-table thead th {
+    background: var(--panel);
+    color: var(--cf-2);
+    font-weight: 700;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .ssl-table tr:last-child td { border-bottom: none; }
+  .ssl-table tr.recommend td {
+    background: rgba(63, 185, 80, 0.08);
+  }
+  .ssl-table tr.recommend td:first-child {
+    border-left: 3px solid var(--green);
+  }
+  .badge-ng { background: rgba(248, 81, 73, 0.18); color: var(--red); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+  .badge-ok { background: rgba(63, 185, 80, 0.18); color: var(--green); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+  .badge-warn { background: rgba(240, 136, 62, 0.18); color: var(--orange); padding: 2px 8px; border-radius: 4px; font-size: 0.75rem; font-weight: 700; }
+
+  /* チェックリスト */
+  .checklist {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    list-style: none;
+    margin: 16px 0;
+  }
+  .checklist li {
+    padding: 8px 0 8px 30px;
+    position: relative;
+    border-bottom: 1px dashed var(--border);
+  }
+  .checklist li:last-child { border-bottom: none; }
+  .checklist li::before {
+    content: "☑";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    color: var(--green);
+    font-size: 1.1rem;
+  }
+  .checklist li strong { color: var(--cf-2); }
+
+  /* 他に設定すべきテーブル */
+  .extra-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin: 16px 0;
+  }
+  .extra-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 18px;
+  }
+  .extra-card h4 {
+    color: var(--cf-2);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .extra-card h4 .ic {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(246, 130, 31, 0.15);
+    border: 1px solid rgba(246, 130, 31, 0.3);
+    border-radius: 6px;
+    font-size: 0.85rem;
+  }
+  .extra-card p { color: var(--muted); font-size: 0.88rem; margin-bottom: 6px; }
+  .extra-card .where {
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.78rem;
+    color: var(--muted);
+    background: var(--panel-2);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    margin-top: 4px;
+  }
+
+  /* TOC */
+  .toc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 24px;
+    margin-bottom: 32px;
+  }
+  .toc-title {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 10px;
+  }
+  .toc ol { margin-left: 1.4em; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* スクリーンショット */
+  .screenshot {
+    margin: 14px 0 4px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--panel-2);
+  }
+  .screenshot img {
+    display: block;
+    width: 100%;
+    height: auto;
+    cursor: zoom-in;
+    transition: opacity 0.15s ease;
+  }
+  .screenshot img:hover { opacity: 0.85; }
+
+  /* ライトボックス */
+  .lightbox {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.88);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    cursor: zoom-out;
+    padding: 20px;
+  }
+  .lightbox.is-open { display: flex; }
+  .lightbox img {
+    max-width: 100%;
+    max-height: 100%;
+    width: auto;
+    height: auto;
+    border-radius: 6px;
+    box-shadow: 0 12px 48px rgba(0, 0, 0, 0.6);
+  }
+  .lightbox-close {
+    position: absolute;
+    top: 16px;
+    right: 20px;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .lightbox-close:hover { background: rgba(255, 255, 255, 0.22); }
+  .screenshot figcaption {
+    padding: 8px 12px;
+    background: var(--panel-2);
+    color: var(--muted);
+    font-size: 0.8rem;
+    border-top: 1px solid var(--border);
+  }
+  .extra-card .screenshot {
+    margin: 10px 0 0;
+  }
+
+  @media (max-width: 720px) {
+    .pillars, .extra-grid, .value-grid { grid-template-columns: 1fr; }
+    header h1 { font-size: 1.6rem; }
+    .ssl-table th, .ssl-table td { font-size: 0.82rem; padding: 8px 10px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / Cloudflare / セキュリティ設定（暗号化最大化 / HTTPS 自動化 / ボット対策）
+</div>
+
+<header>
+  <div class="logo-mark">CF</div>
+  <h1>Cloudflare セキュリティ設定の決定版</h1>
+  <p>
+    ドメインを Cloudflare に乗せたら最低限やっておきたい
+    <strong>暗号化最大化</strong> / <strong>HTTPS 自動化</strong> / <strong>ボット対策</strong>
+    の 3 本柱と、合わせて入れておくべき追加設定までを一気通貫で整理。
+  </p>
+</header>
+
+<div class="lead-card">
+  <p>
+    Cloudflare の管理画面は <code>dash.cloudflare.com</code> から
+    <strong>該当ドメインを選択 → 左サイドバーから各メニュー</strong> という流れで操作します。
+    本ページは <strong>Free プラン</strong> でも全て設定可能な項目を中心に、
+    Pro 以上が必要な機能には明示マークを付けて整理しています。
+  </p>
+</div>
+
+<div class="toc">
+  <div class="toc-title">📋 目次</div>
+  <ol>
+    <li><a href="#pillars">セキュリティ 3 本柱の全体像</a></li>
+    <li><a href="#encryption">① 暗号化を最大化する（SSL/TLS）</a></li>
+    <li><a href="#https">② HTTPS を自動化する（強制リダイレクト & HSTS）</a></li>
+    <li><a href="#bot">③ ボット対策を有効化する</a></li>
+    <li><a href="#extra">+α 合わせて設定すべきもの</a></li>
+    <li><a href="#checklist">最終チェックリスト</a></li>
+  </ol>
+</div>
+
+<!-- ===== 3本柱 ===== -->
+<section id="pillars">
+  <h2>セキュリティ 3 本柱の全体像<span class="toggle-icon" aria-hidden="true">▾</span></h2>
+  <p>
+    Cloudflare のセキュリティ設定は数十項目あって最初は何から触れば良いか迷いますが、
+    まず以下の 3 つを順番に入れるだけで <strong>「最低ライン」</strong> はクリアできます。
+  </p>
+  <div class="pillars">
+    <div class="pillar-card">
+      <span class="pillar-num">① 暗号化最大化</span>
+      <div class="pillar-title">🔐 SSL/TLS を Full (strict) に</div>
+      <div class="pillar-desc">
+        ブラウザ ↔ Cloudflare ↔ オリジンの全区間を TLS で結び、
+        オリジン証明書も検証する最も厳格なモードへ引き上げる。
+      </div>
+    </div>
+    <div class="pillar-card">
+      <span class="pillar-num">② HTTPS 自動化</span>
+      <div class="pillar-title">🔁 Always HTTPS + HSTS</div>
+      <div class="pillar-desc">
+        全 HTTP アクセスを 301 で HTTPS に強制リダイレクトし、
+        さらに HSTS でブラウザに「次回から最初から HTTPS」と覚えさせる。
+      </div>
+    </div>
+    <div class="pillar-card">
+      <span class="pillar-num">③ ボット対策</span>
+      <div class="pillar-title">🤖 Bot Fight Mode + WAF</div>
+      <div class="pillar-desc">
+        無料の Bot Fight Mode を ON、Browser Integrity Check と
+        マネージド WAF ルール、Rate Limiting を併用してスクレイパー・スキャナーを排除。
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 暗号化最大化 ===== -->
+<section id="encryption">
+  <h2>① 暗号化を最大化する（SSL/TLS）<span class="toggle-icon" aria-hidden="true">▾</span></h2>
+
+  <p>
+    Cloudflare ↔ オリジンサーバ間の暗号化レベルを決める設定で、
+    ここを誤ると <strong>「鍵マークは付いているのに実は素の HTTP で通信していた」</strong>
+    という事故になります。
+  </p>
+
+  <h3>SSL/TLS 暗号化モードの違い</h3>
+  <table class="ssl-table">
+    <thead>
+      <tr>
+        <th>モード</th>
+        <th>ブラウザ ↔ CF</th>
+        <th>CF ↔ オリジン</th>
+        <th>証明書検証</th>
+        <th>備考</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Off</strong></td>
+        <td><span class="badge-ng">HTTP</span></td>
+        <td><span class="badge-ng">HTTP</span></td>
+        <td>—</td>
+        <td>禁忌。常時無効化。</td>
+      </tr>
+      <tr>
+        <td><strong>Flexible</strong></td>
+        <td><span class="badge-ok">HTTPS</span></td>
+        <td><span class="badge-ng">HTTP</span></td>
+        <td>—</td>
+        <td>後半が平文。リダイレクトループの温床。<strong>使ってはいけない</strong>。</td>
+      </tr>
+      <tr>
+        <td><strong>Full</strong></td>
+        <td><span class="badge-ok">HTTPS</span></td>
+        <td><span class="badge-ok">HTTPS</span></td>
+        <td><span class="badge-warn">無し</span></td>
+        <td>自己署名証明書を許容。中間者攻撃に弱い。</td>
+      </tr>
+      <tr class="recommend">
+        <td><strong>Full (strict) ✅</strong></td>
+        <td><span class="badge-ok">HTTPS</span></td>
+        <td><span class="badge-ok">HTTPS</span></td>
+        <td><span class="badge-ok">あり</span></td>
+        <td><strong>本番の正解</strong>。オリジンに正規証明書 or Cloudflare Origin CA を入れる。</td>
+      </tr>
+      <tr>
+        <td><strong>Strict (SSL-Only Origin Pull)</strong></td>
+        <td><span class="badge-ok">HTTPS</span></td>
+        <td><span class="badge-ok">mTLS</span></td>
+        <td><span class="badge-ok">あり</span></td>
+        <td>Authenticated Origin Pulls。Cloudflare 経由以外を遮断。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout warn">
+    <strong>⚠ Flexible SSL は絶対に避ける</strong>：「サイトは HTTPS 化したように見えて、
+    実は CF→オリジン間が裸の HTTP」という最悪のパターンになります。WordPress 等で
+    リダイレクトループ（<code>ERR_TOO_MANY_REDIRECTS</code>）が出る典型原因でもあります。
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">1</span>
+      <span class="step-title">SSL/TLS 暗号化モードを Full (strict) に切り替え</span>
+    </div>
+    <div class="step-path">
+      ダッシュボード <span class="arrow">›</span> ドメイン選択
+      <span class="arrow">›</span> SSL/TLS <span class="arrow">›</span>
+      <span class="leaf">Overview</span>
+    </div>
+    <ul>
+      <li>「Custom SSL/TLS」を <strong>Full (strict)</strong> に変更</li>
+      <li>オリジンに有効な証明書が無い場合は、SSL/TLS → <strong>Origin Server</strong> から
+        <code>Create Certificate</code> で <strong>Cloudflare Origin CA</strong> 証明書（最大 15 年）を発行してオリジンへ設置</li>
+    </ul>
+    <figure class="screenshot">
+      <img src="img/full_strict.jpg" alt="SSL/TLS 暗号化モード Full (strict) を選択した画面">
+      <figcaption>SSL/TLS › Overview で「Full (strict)」を選択した状態</figcaption>
+    </figure>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">2</span>
+      <span class="step-title">最低 TLS バージョンを 1.2 以上に</span>
+    </div>
+    <div class="step-path">
+      SSL/TLS <span class="arrow">›</span>
+      <span class="leaf">Edge Certificates</span>
+      <span class="arrow">›</span> Minimum TLS Version
+    </div>
+    <div class="value-grid">
+      <div class="value-box bad">
+        <div class="value-label">✗ 古い</div>
+        <div class="value-name">TLS 1.0 / 1.1</div>
+        <div class="value-note">PCI DSS 非準拠。BEAST/POODLE などの既知攻撃あり。</div>
+      </div>
+      <div class="value-box good">
+        <div class="value-label">✓ 推奨</div>
+        <div class="value-name">TLS 1.2（最低） / TLS 1.3（推奨）</div>
+        <div class="value-note">古い IE / Android 4.x を切れるなら 1.3 が理想。</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">3</span>
+      <span class="step-title">TLS 1.3 と Opportunistic Encryption を ON</span>
+    </div>
+    <div class="step-path">
+      SSL/TLS <span class="arrow">›</span>
+      <span class="leaf">Edge Certificates</span>
+    </div>
+    <ul>
+      <li><strong>TLS 1.3</strong>: ON（高速・安全な最新プロトコル）</li>
+      <li><strong>Opportunistic Encryption</strong>: ON（HTTP 要求も裏で HTTPS で取りに行く）</li>
+      <li><strong>Automatic HTTPS Rewrites</strong>: ON（HTML 内の <code>http://</code> リンクを自動で <code>https://</code> に書換）</li>
+    </ul>
+    <figure class="screenshot">
+      <img src="img/tls1.3.png" alt="Edge Certificates の TLS 1.3 トグルを ON にした画面">
+      <figcaption>SSL/TLS › Edge Certificates ページの TLS 1.3 設定</figcaption>
+    </figure>
+  </div>
+
+  <div class="callout tip">
+    <strong>💡 Authenticated Origin Pulls（mTLS）まで入れると完璧</strong>：
+    SSL/TLS → Origin Server → Authenticated Origin Pulls を ON にし、
+    オリジン側で <code>cloudflare.crt</code> を信頼すると
+    <strong>Cloudflare 経由以外の HTTPS リクエストをオリジンが拒否</strong>できます（IP バイパス防止）。
+  </div>
+  <figure class="screenshot">
+    <img src="img/mtls.png" alt="Authenticated Origin Pulls（mTLS）の設定画面">
+    <figcaption>SSL/TLS › Origin Server › Authenticated Origin Pulls を ON にした状態</figcaption>
+  </figure>
+</section>
+
+<!-- ===== HTTPS 自動化 ===== -->
+<section id="https">
+  <h2>② HTTPS を自動化する（強制リダイレクト & HSTS）<span class="toggle-icon" aria-hidden="true">▾</span></h2>
+
+  <p>
+    オリジンとの間が暗号化されても、ユーザが <code>http://</code> で来てしまえば
+    最初の 1 リクエストだけは平文。これを防ぐのが <strong>常時 HTTPS + HSTS</strong> の組み合わせです。
+  </p>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">1</span>
+      <span class="step-title">Always Use HTTPS（HTTP→HTTPS 強制リダイレクト）</span>
+    </div>
+    <div class="step-path">
+      SSL/TLS <span class="arrow">›</span>
+      <span class="leaf">Edge Certificates</span>
+      <span class="arrow">›</span> Always Use HTTPS
+    </div>
+    <p>
+      <strong>ON</strong> にすると、Cloudflare が <code>http://</code> へのリクエストを
+      自動で <code>301 → https://</code> にリダイレクトします。
+      アプリ側のリダイレクト実装が不要になり、設定漏れによる平文アクセスを完全に塞げます。
+    </p>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">2</span>
+      <span class="step-title">HSTS（Strict-Transport-Security）の有効化</span>
+    </div>
+    <div class="step-path">
+      SSL/TLS <span class="arrow">›</span>
+      <span class="leaf">Edge Certificates</span>
+      <span class="arrow">›</span> HTTP Strict Transport Security (HSTS)
+    </div>
+    <p>HSTS はブラウザに「このドメインは <strong>今後一切 HTTP で来るな</strong>」と覚えさせるヘッダです。</p>
+    <pre><code><span class="key">Strict-Transport-Security</span>: max-age=<span class="num">31536000</span>; includeSubDomains; preload</code></pre>
+    <ul>
+      <li><strong>Max Age</strong>: <code>6 months（15552000）</code> から開始 → 問題なければ <code>12 months</code> に延長</li>
+      <li><strong>Apply HSTS to subdomains (includeSubDomains)</strong>: 全サブドメインを HTTPS 化済みなら ON</li>
+      <li><strong>Preload</strong>: <a href="https://hstspreload.org" target="_blank" rel="noopener">hstspreload.org</a> に登録すると、
+          ブラウザのプリロードリストに焼き込まれ初回アクセスから HTTPS 強制になる</li>
+      <li><strong>No-Sniff Header</strong>: ON 推奨</li>
+    </ul>
+    <div class="callout warn">
+      <strong>⚠ HSTS の解除は事実上できない</strong>：max-age を長くすると、
+      設定ミスで HTTPS が止まったときユーザのブラウザに「最大 N 秒間 HTTP に戻れない」記憶が残ります。
+      最初は短い max-age（例: 300 秒）で挙動確認 → 段階的に伸ばすのが安全です。
+    </div>
+    <figure class="screenshot">
+      <img src="img/hsts.png" alt="HTTP Strict Transport Security (HSTS) の設定画面">
+      <figcaption>SSL/TLS › Edge Certificates › HSTS の設定ダイアログ</figcaption>
+    </figure>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">3</span>
+      <span class="step-title">Universal SSL（無料の Edge 証明書）が発行済みか確認</span>
+    </div>
+    <div class="step-path">
+      SSL/TLS <span class="arrow">›</span>
+      <span class="leaf">Edge Certificates</span>
+      <span class="arrow">›</span> Universal SSL
+    </div>
+    <p>
+      ドメインを Cloudflare の DNS に向けた瞬間に自動発行・自動更新されます。
+      ステータスが <strong>Active</strong> でない場合は、DNS の CAA レコード設定や
+      ネームサーバ未切替が原因。
+    </p>
+    <figure class="screenshot">
+      <img src="img/univresal_ssl.png" alt="Universal SSL のステータス画面">
+      <figcaption>SSL/TLS › Edge Certificates › Universal SSL のステータス確認</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===== ボット対策 ===== -->
+<section id="bot">
+  <h2>③ ボット対策を有効化する<span class="toggle-icon" aria-hidden="true">▾</span></h2>
+
+  <p>
+    Cloudflare のボット対策は、無料でもかなり強力です。
+    新ダッシュボードでは <strong>Security → Settings</strong> ページに各種トグルが集約され、
+    Web application exploits / DDoS attacks / Bot traffic / API abuse / Client-side abuse の
+    5 カテゴリに整理されています。
+  </p>
+
+  <div class="callout warn">
+    <strong>⚠ Security Level（Low / Medium / High）は事実上の非推奨</strong>：
+    旧ダッシュボードにあった Security Level の判定根拠だった
+    <strong>threat score（0–100）は現在常に <code>0</code> しか返さなくなっており</strong>、
+    Cloudflare 公式が
+    <a href="https://developers.cloudflare.com/waf/tools/security-level/" target="_blank" rel="noopener">「threat score ベースのルールは作るな」</a>
+    と明言しています。新ダッシュボードでは Security Level の UI 自体が見当たらないことが多く、
+    残っている場合も <strong>実質的には "Under Attack Mode の ON/OFF スイッチ"</strong> としてしか機能しません。
+    本ページでは Security Level に依存せず、<strong>Bot Fight Mode + WAF Managed Rules + Rate Limiting</strong>
+    の組み合わせで防御する手順に統一しています。
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">1</span>
+      <span class="step-title">Bot Fight Mode を ON</span>
+    </div>
+    <div class="step-path">
+      Security <span class="arrow">›</span>
+      <span class="leaf">Settings</span>
+      <span class="arrow">›</span> Bot traffic <span class="arrow">›</span> Bot Fight Mode
+    </div>
+    <p>
+      Cloudflare が「明らかにボット」と判定したリクエストに対し
+      自動で計算チャレンジ（Proof-of-Work）を返します。<strong>Free プランで利用可能</strong>。
+      Pro 以上では <strong>Super Bot Fight Mode</strong> が選べ、
+      Likely Automated / Verified Bot を細かく制御できます。
+    </p>
+    <div class="callout info">
+      <strong>ℹ Verified Bots は許可される</strong>：Googlebot / Bingbot / Slackbot のように
+      Cloudflare が検証済みのクローラはブロック対象外なので、SEO に影響しません。
+    </div>
+    <figure class="screenshot">
+      <img src="img/bot_fight_mode.png" alt="Bot Fight Mode を ON にした画面">
+      <figcaption>Security › Settings › Bot traffic › Bot Fight Mode のトグル</figcaption>
+    </figure>
+  </div>
+
+  <div class="callout info">
+    <strong>ℹ Security → Settings ページの構成</strong>：
+    新ダッシュボードでは <strong>Security → Settings</strong> ページに、
+    Browser Integrity Check / Challenge Passage / Replace Insecure JS Libraries /
+    Email Address Obfuscation / Hotlink Protection などのトグルがフラットに並びます。
+    上部の <strong>カテゴリフィルタ（Web application exploits / DDoS attacks / Bot traffic / API abuse / Client-side abuse）</strong>
+    で絞り込めますが、フィルタを外せば全項目が一覧で見えます。各設定はトグル式で、
+    横に鉛筆アイコンがある項目はクリックで詳細値を変更できます。
+    <br>直リンク: <code>https://dash.cloudflare.com/?to=/:account/:zone/security/settings</code>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">2</span>
+      <span class="step-title">Browser Integrity Check を ON</span>
+    </div>
+    <div class="step-path">
+      Security <span class="arrow">›</span>
+      <span class="leaf">Settings</span>
+      <span class="arrow">›</span> Browser Integrity Check
+    </div>
+    <p>
+      User-Agent や HTTP ヘッダに既知の異常パターン（スパムボットでよく見られる
+      壊れた User-Agent、欠落必須ヘッダなど）があるリクエストを自動的に弾く機能です。
+      誤検知が起きにくく副作用がほぼ無いので、<strong>ON 固定</strong>で問題ありません。
+    </p>
+    <figure class="screenshot">
+      <img src="img/Browser_integrity_check.png" alt="Browser Integrity Check を ON にした画面">
+      <figcaption>Security › Settings › Browser Integrity Check のトグル</figcaption>
+    </figure>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">3</span>
+      <span class="step-title">Challenge Passage の有効期間を確認</span>
+    </div>
+    <div class="step-path">
+      Security <span class="arrow">›</span>
+      <span class="leaf">Settings</span>
+      <span class="arrow">›</span> Challenge Passage
+    </div>
+    <p>
+      チャレンジ（CAPTCHA / JS チャレンジ）に一度通過したクライアントを、
+      どのくらいの間「人間扱い」して再チャレンジを免除するかを決める設定です。
+      デフォルトは <code>30 分</code>。Cloudflare 推奨レンジは <code>15〜45 分</code>で、
+      <strong>短すぎるとログインユーザに何度もチャレンジが出てしまい</strong>、
+      長すぎると共有 IP（オフィス NAT・モバイル回線）から
+      ボットが免除を引き継いでしまうリスクがあります。
+    </p>
+    <figure class="screenshot">
+      <img src="img/Challenge_Passage.png" alt="Challenge Passage の有効期間を編集する画面">
+      <figcaption>Security › Settings › Challenge Passage の有効期間（デフォルト 30 分）</figcaption>
+    </figure>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">4</span>
+      <span class="step-title">Replace Insecure JavaScript Libraries を ON</span>
+    </div>
+    <div class="step-path">
+      Security <span class="arrow">›</span>
+      <span class="leaf">Settings</span>
+      <span class="arrow">›</span> Replace Insecure JavaScript Libraries
+    </div>
+    <p>
+      ページ内で参照している JS ライブラリのうち、
+      <strong>既知の脆弱性が報告されている古いバージョン</strong>（例: 古い jQuery）を、
+      Cloudflare の Edge で <strong>cdnjs ホストの安全版に自動的に書き換えて配信</strong>する機能です。
+      サードパーティテーマや古い WordPress プラグインに引きずられて
+      古い JS を読み込んでしまうサイトには特に有効。<strong>ON 推奨</strong>。
+    </p>
+    <figure class="screenshot">
+      <img src="img/Replace_Insecure_JavaScript_Libraries.png" alt="Replace Insecure JavaScript Libraries の設定画面">
+      <figcaption>Security › Settings › Replace Insecure JavaScript Libraries のトグル</figcaption>
+    </figure>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">5</span>
+      <span class="step-title">緊急時のみ "Under Attack Mode" を ON</span>
+    </div>
+    <div class="step-path">
+      ゾーン <span class="leaf">Overview</span> ページ
+      <span class="arrow">›</span> 右側 Quick Actions サイドバー
+      <span class="arrow">›</span> Under Attack Mode
+    </div>
+    <p>
+      旧 Security Level の "I'm Under Attack!" に相当する機能で、
+      <strong>全アクセスに JS チャレンジ</strong>を挟みます。
+      新ダッシュボードでは <strong>Security メニュー配下ではなく、ゾーン Overview ページ右側の Quick Actions</strong>
+      に独立して配置されました。サイトが重くなり API クライアントも弾かれるため、
+      <strong>DDoS を実際に受けているときだけ一時的に ON</strong> にし、収束後すぐ OFF に戻すのが原則。
+      平常時は触らないこと。
+    </p>
+    <figure class="screenshot">
+      <img src="img/Under_Attack_Mode.png" alt="Under Attack Mode の切替画面">
+      <figcaption>ゾーン Overview › Quick Actions › Under Attack Mode</figcaption>
+    </figure>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">6</span>
+      <span class="step-title">フォーム/ログインに Turnstile を入れる</span>
+    </div>
+    <div class="step-path">
+      アカウントホーム左サイドバー <span class="arrow">›</span>
+      <span class="leaf">Turnstile</span>
+      <span class="arrow">›</span> Add widget
+    </div>
+    <p>
+      reCAPTCHA の代替となる Cloudflare 公式の無料 CAPTCHA。
+      アカウント単位で <strong>Add widget</strong> から sitekey / secret を発行し、サイトに
+      <code>&lt;div class="cf-turnstile" data-sitekey="..."&gt;&lt;/div&gt;</code> を埋め込み、
+      サーバ側で <code>POST</code> されたトークンを検証 API で検証します。
+      ユーザ操作不要（不可視チャレンジ）でフォーム自動投稿を弾けます。
+    </p>
+    <pre><code><span class="cmt"># Turnstile の検証（サーバサイド）</span>
+<span class="cmd">curl</span> -X POST <span class="str">"https://challenges.cloudflare.com/turnstile/v0/siteverify"</span> \
+  -d <span class="str">"secret=$TURNSTILE_SECRET"</span> \
+  -d <span class="str">"response=$TOKEN_FROM_FORM"</span></code></pre>
+    <p style="font-size:0.85rem;color:var(--muted);">
+      直リンク: <code>https://dash.cloudflare.com/?to=/:account/turnstile</code>
+    </p>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">7</span>
+      <span class="step-title">レート制限ルールでログイン総当たりを止める</span>
+    </div>
+    <div class="step-path">
+      Security <span class="arrow">›</span>
+      <span class="leaf">Security rules</span>
+      <span class="arrow">›</span> Create rule <span class="arrow">›</span> Rate limiting rules
+    </div>
+    <p>
+      新ダッシュボードでは Rate Limiting / Custom Rules はかつての <code>WAF</code> ページから
+      <strong>「Security rules」ページ</strong>に移動・統合されました。Free プランでも
+      <strong>1 ルール</strong> まで Rate Limiting が組めます。
+      <code>/login</code> や <code>/wp-login.php</code> のような高リスクパスに
+      「同一 IP から 1 分 10 リクエスト超でブロック」を入れるのが定番。
+    </p>
+    <pre><code><span class="cmt"># 例: /login へ 1分 10 回超えたらブロック</span>
+<span class="key">URI Path</span> equals <span class="str">"/login"</span>
+<span class="key">Action</span>: Block
+<span class="key">Period</span>: <span class="num">1</span> minute
+<span class="key">Requests</span>: <span class="num">10</span></code></pre>
+    <p style="font-size:0.85rem;color:var(--muted);">
+      直リンク: <code>https://dash.cloudflare.com/?to=/:account/:zone/security/security-rules</code>
+    </p>
+    <figure class="screenshot">
+      <img src="img/Rate limiting rules.png" alt="Rate limiting rules の作成画面">
+      <figcaption>Security › Security rules › Rate limiting rules の作成画面</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ===== +α ===== -->
+<section id="extra">
+  <h2>+α 合わせて設定すべきもの<span class="toggle-icon" aria-hidden="true">▾</span></h2>
+  <p>
+    上記 3 本柱に加え、攻撃面を一段階下げるために以下も入れておくと実質
+    「やれることは無料枠で全部やった」状態になります。
+  </p>
+
+  <div class="extra-grid">
+
+    <div class="extra-card">
+      <h4><span class="ic">🛡</span> WAF マネージドルール</h4>
+      <p>OWASP Top 10 などの既知攻撃パターンを自動でブロック。Free でも
+        <strong>Cloudflare Free Managed Ruleset</strong> が使える。</p>
+      <span class="where">Security › WAF › Managed rules</span>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">🚫</span> カスタム WAF ルール</h4>
+      <p>国別ブロック / 特定 User-Agent ブロック / <code>wp-admin</code> を自宅 IP のみ許可、
+        などをノーコードで追加できる。新ダッシュボードでは Rate Limiting と同じ
+        <code>Security rules</code> ページに統合された。</p>
+      <span class="where">Security › Security rules › Create rule › Custom rules</span>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">🔑</span> DNSSEC を ON</h4>
+      <p>DNS レスポンスの改ざん（キャッシュポイズニング）を署名で検証。
+        ボタン 1 つで有効化できるが、レジストラ側に DS レコード登録が必要。</p>
+      <span class="where">DNS › Settings › DNSSEC</span>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">📧</span> Email Address Obfuscation</h4>
+      <p>HTML 中の <code>mailto:</code> をスクレイパー対策で自動難読化。
+        メールアドレス収集系ボットの収穫率を激減させる。デフォルト ON。</p>
+      <span class="where">Security › Settings › Email Address Obfuscation</span>
+      <figure class="screenshot">
+        <img src="img/Email Address Obfuscation.png" alt="Email Address Obfuscation のトグル画面">
+        <figcaption>Security › Settings › Email Address Obfuscation</figcaption>
+      </figure>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">🔗</span> Hotlink Protection</h4>
+      <p>画像直リンク（外部サイトに <code>&lt;img&gt;</code> 埋込）を遮断。
+        画像転送量の盗用と帯域コストを防ぐ。</p>
+      <span class="where">Security › Settings › Hotlink Protection</span>
+      <figure class="screenshot">
+        <img src="img/Hotlink_Protection.png" alt="Hotlink Protection のトグル画面">
+        <figcaption>Security › Settings › Hotlink Protection</figcaption>
+      </figure>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">🌐</span> .onion ルーティング（任意）</h4>
+      <p>Tor ユーザ向けに <code>.onion</code> アドレスを自動発行・対応。
+        プライバシー重視メディアでは有用。一般サイトでは不要。</p>
+      <span class="where">Network › Onion Routing</span>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">🚷</span> オリジン IP の隠蔽</h4>
+      <p>DNS A レコードは必ず <strong>オレンジ雲（Proxied）</strong>に。
+        グレー雲（DNS Only）だとオリジン IP が漏れて Cloudflare 迂回攻撃の踏み台になる。</p>
+      <span class="where">DNS › Records › 各レコードの Proxy 状態</span>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">🔒</span> アカウントの 2FA</h4>
+      <p>Cloudflare アカウント自体を奪われると DNS / 証明書 / WAF を全部書き換えられる。
+        TOTP もしくは WebAuthn の <strong>2 要素認証</strong>を必ず ON。</p>
+      <span class="where">右上アイコン › My Profile › Authentication</span>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">📜</span> Audit Logs を定期確認</h4>
+      <p>誰がいつどの設定を変えたかが残る。設定改ざん検知 / 共同管理者の事故防止に。</p>
+      <span class="where">Manage Account › Audit Log</span>
+    </div>
+
+    <div class="extra-card">
+      <h4><span class="ic">🔄</span> Page Shield（Pro+）</h4>
+      <p>サイトに読み込まれる JavaScript を監視し、
+        サプライチェーン経由のスキマー（Magecart 等）を検知。</p>
+      <span class="where">Security › Page Shield</span>
+    </div>
+
+  </div>
+</section>
+
+<!-- ===== チェックリスト ===== -->
+<section id="checklist">
+  <h2>最終チェックリスト<span class="toggle-icon" aria-hidden="true">▾</span></h2>
+  <p>新規ドメインを Cloudflare に乗せた直後、上から順に潰していけば抜けが出ません。</p>
+
+  <ul class="checklist">
+    <li><strong>SSL/TLS モード</strong> を <code>Full (strict)</code> に設定した</li>
+    <li><strong>Minimum TLS Version</strong> を <code>1.2</code> 以上に上げた</li>
+    <li><strong>TLS 1.3 / Opportunistic Encryption / Automatic HTTPS Rewrites</strong> を ON にした</li>
+    <li><strong>Always Use HTTPS</strong> を ON にして HTTP→HTTPS 強制リダイレクトを有効にした</li>
+    <li><strong>HSTS</strong> を有効化（最初は短い max-age → 段階的に延長）</li>
+    <li><strong>Universal SSL</strong> が <code>Active</code> になっていることを確認した</li>
+    <li><strong>Bot Fight Mode</strong> を ON にした（Security Level は threat score 廃止により実質非推奨なので触らない）</li>
+    <li><strong>Browser Integrity Check / Privacy Pass</strong> を ON にした</li>
+    <li>ログイン系パスに <strong>Rate Limiting</strong> ルールを 1 つ入れた</li>
+    <li><strong>WAF Managed Rules（Free）</strong> を有効化した</li>
+    <li>DNS レコードがすべて <strong>オレンジ雲（Proxied）</strong> になっている</li>
+    <li><strong>DNSSEC</strong> を有効化し、レジストラ側に DS レコードを登録した</li>
+    <li>Cloudflare アカウントに <strong>2FA</strong> をかけた</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>💡 仕上げに外部スキャナで点検</strong>：
+    <a href="https://www.ssllabs.com/ssltest/" target="_blank" rel="noopener">SSL Labs</a> で <strong>A+</strong>、
+    <a href="https://securityheaders.com/" target="_blank" rel="noopener">securityheaders.com</a> で <strong>A 以上</strong>
+    が取れていれば、ひとまず合格ラインです。
+  </div>
+</section>
+
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true" aria-label="拡大表示">
+  <button type="button" class="lightbox-close" id="lightboxClose" aria-label="閉じる">×</button>
+  <img id="lightboxImg" alt="">
+</div>
+
+<script>
+(function () {
+  document.querySelectorAll('section > h2').forEach(function (h2) {
+    h2.parentElement.classList.add('is-collapsed');
+    h2.addEventListener('click', function () {
+      h2.parentElement.classList.toggle('is-collapsed');
+    });
+  });
+
+  document.querySelectorAll('.toc a[href^="#"]').forEach(function (a) {
+    a.addEventListener('click', function () {
+      var id = a.getAttribute('href').slice(1);
+      var sec = document.getElementById(id);
+      if (sec) sec.classList.remove('is-collapsed');
+    });
+  });
+})();
+</script>
+
+<script>
+(function () {
+  var lb = document.getElementById('lightbox');
+  var lbImg = document.getElementById('lightboxImg');
+  var lbClose = document.getElementById('lightboxClose');
+
+  function open(src, alt) {
+    lbImg.src = src;
+    lbImg.alt = alt || '';
+    lb.classList.add('is-open');
+    document.body.style.overflow = 'hidden';
+  }
+  function close() {
+    lb.classList.remove('is-open');
+    lbImg.removeAttribute('src');
+    document.body.style.overflow = '';
+  }
+
+  document.querySelectorAll('.screenshot img').forEach(function (img) {
+    img.addEventListener('click', function () {
+      open(img.getAttribute('src'), img.getAttribute('alt'));
+    });
+  });
+
+  lb.addEventListener('click', function (e) {
+    if (e.target === lb || e.target === lbImg) close();
+  });
+  lbClose.addEventListener('click', close);
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && lb.classList.contains('is-open')) close();
+  });
+})();
+</script>
+</body>
+</html>
