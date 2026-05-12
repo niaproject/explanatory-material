@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ansible の k8s モジュールの仕組み — kubernetes.core / 内部実装 / 認証 / 冪等性 | Ansible 解説</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --ansible: #ee0000;
+    --ansible-2: #ff4444;
+    --k8s: #326ce5;
+    --k8s-2: #5b8def;
+    --link: #79c0ff;
+    --link-hover: #a5d6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.75;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+
+  a {
+    color: var(--link);
+    text-decoration: underline;
+    text-decoration-color: rgba(121, 192, 255, 0.45);
+    text-underline-offset: 3px;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  }
+  a:hover {
+    color: var(--link-hover);
+    text-decoration-color: var(--link-hover);
+  }
+  a:visited { color: var(--link); }
+  .breadcrumb a, .toc a { text-decoration: none; }
+  .breadcrumb a:hover, .toc a:hover { text-decoration: underline; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 48px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(circle, rgba(238, 0, 0, 0.16) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header::after {
+    content: "";
+    position: absolute;
+    bottom: -30%;
+    right: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(circle, rgba(50, 108, 229, 0.18) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header .duo {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  header .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+  }
+  header .badge.ans { background: rgba(238, 0, 0, 0.15); color: var(--ansible-2); border: 1px solid rgba(238,0,0,0.4); }
+  header .badge.k8s { background: rgba(50, 108, 229, 0.15); color: var(--k8s-2); border: 1px solid rgba(50,108,229,0.4); }
+  header .duo .plus { color: var(--muted); font-weight: 700; }
+  header h1 {
+    font-size: 2.1rem;
+    background: linear-gradient(90deg, var(--ansible-2), var(--k8s-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  header p { color: var(--muted); font-size: 1.02rem; position: relative; }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.55rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(180deg, var(--ansible-2), var(--k8s-2));
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.18rem; margin: 22px 0 10px; color: var(--accent); }
+  h4 { font-size: 1rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    overflow-x: auto;
+    margin: 12px 0 20px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.86rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+  .ans-text { color: var(--ansible-2); font-weight: 600; }
+  .k8s-text { color: var(--k8s-2); font-weight: 600; }
+  .ok-text { color: var(--green); font-weight: 600; }
+  .warn-text { color: var(--yellow); font-weight: 600; }
+  .ng-text { color: var(--red); font-weight: 600; }
+
+  /* TL;DR */
+  .tldr {
+    background: linear-gradient(135deg, rgba(238,0,0,0.08), rgba(50,108,229,0.08));
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    padding: 22px 26px;
+  }
+  .tldr h3 { color: var(--accent); margin-top: 0; }
+  .tldr p:last-child { margin-bottom: 0; }
+
+  /* TOC */
+  .toc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 24px;
+    margin-bottom: 36px;
+  }
+  .toc h3 { margin-top: 0; color: var(--text); font-size: 1rem; }
+  .toc ol { margin: 8px 0 0 1.4em; }
+  .toc a { color: var(--link); }
+  .toc li { margin-bottom: 4px; font-size: 0.93rem; }
+
+  /* Architecture box */
+  .arch {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px;
+    margin: 18px 0;
+  }
+  .arch-title {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    font-weight: 700;
+  }
+  .arch-layer {
+    display: grid;
+    gap: 12px;
+    margin-bottom: 10px;
+  }
+  .arch-layer.cols-1 { grid-template-columns: 1fr; }
+  .arch-layer.cols-2 { grid-template-columns: 1fr 1fr; }
+  .arch-layer.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .arch-box {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 14px;
+    text-align: center;
+  }
+  .arch-box strong { display: block; font-size: 0.98rem; margin-bottom: 4px; }
+  .arch-box .sub { color: var(--muted); font-size: 0.8rem; }
+  .arch-box.ans { border-top: 3px solid var(--ansible); }
+  .arch-box.k8s { border-top: 3px solid var(--k8s); }
+  .arch-box.bridge { border-top: 3px solid var(--purple); }
+  .arch-box.kernel { border-top: 3px solid var(--orange); }
+  .arrow-down {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    letter-spacing: 0.12em;
+    margin: 4px 0;
+    font-weight: 700;
+  }
+
+  /* Flow steps */
+  .flow {
+    counter-reset: step;
+    display: grid;
+    gap: 12px;
+    margin: 16px 0 22px;
+  }
+  .flow-step {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 10px;
+    padding: 14px 18px 14px 56px;
+    position: relative;
+  }
+  .flow-step::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 800;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.9rem;
+  }
+  .flow-step strong { display: block; margin-bottom: 4px; color: var(--text); }
+  .flow-step span { color: var(--muted); font-size: 0.92rem; }
+
+  /* Cards grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin: 16px 0 22px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card.ans { border-top: 3px solid var(--ansible); }
+  .card.k8s { border-top: 3px solid var(--k8s); }
+  .card.warn { border-top: 3px solid var(--yellow); }
+  .card.ok { border-top: 3px solid var(--green); }
+  .card.ng { border-top: 3px solid var(--red); }
+  .card h4 { margin: 0 0 6px; font-size: 0.98rem; }
+  .card p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 14px 0 22px;
+  }
+  th, td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.92rem;
+    vertical-align: top;
+  }
+  th {
+    background: var(--panel-2);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.86rem;
+    letter-spacing: 0.04em;
+  }
+  tr:last-child td { border-bottom: none; }
+  td code, th code { font-size: 0.86rem; }
+  .nowrap { white-space: nowrap; }
+
+  /* Idempotency diagram */
+  .idem {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 14px;
+    margin: 14px 0 22px;
+    align-items: stretch;
+  }
+  .idem .col {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+  }
+  .idem .col h4 {
+    color: var(--accent);
+    font-size: 0.88rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin: 0 0 8px;
+  }
+  .idem .col.changed h4 { color: var(--yellow); }
+  .idem .col.ok h4 { color: var(--green); }
+  .idem .col pre { margin: 0; font-size: 0.78rem; padding: 10px 12px; }
+
+  /* Pitfalls callout */
+  .callout {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--yellow);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+  }
+  .callout.danger { border-left-color: var(--red); }
+  .callout.tip { border-left-color: var(--green); }
+  .callout strong.tag {
+    display: inline-block;
+    color: var(--yellow);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .callout.danger strong.tag { color: var(--red); }
+  .callout.tip strong.tag { color: var(--green); }
+
+  /* Compare cards (kubectl vs k8s module) */
+  .vs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+    margin: 18px 0 24px;
+  }
+  .vs-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px 22px;
+  }
+  .vs-card.left { border-top: 3px solid var(--k8s); }
+  .vs-card.right { border-top: 3px solid var(--ansible); }
+  .vs-card .vs-mode {
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 6px;
+    font-weight: 700;
+  }
+  .vs-card.left .vs-mode { color: var(--k8s-2); }
+  .vs-card.right .vs-mode { color: var(--ansible-2); }
+  .vs-card .vs-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 10px;
+  }
+  .vs-card ul { margin-left: 1.2em; }
+
+  @media (max-width: 760px) {
+    body { padding: 24px 14px; }
+    header { padding: 32px 18px; }
+    header h1 { font-size: 1.55rem; }
+    h2 { font-size: 1.3rem; }
+    .arch-layer.cols-2, .arch-layer.cols-3 { grid-template-columns: 1fr; }
+    .vs-grid, .idem { grid-template-columns: 1fr; }
+    th, td { padding: 9px 10px; font-size: 0.82rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / Ansible / k8s モジュールの仕組み
+</div>
+
+<header>
+  <div class="duo">
+    <span class="badge ans">Ansible</span>
+    <span class="plus">×</span>
+    <span class="badge k8s">Kubernetes</span>
+  </div>
+  <h1>Ansible <code style="background:transparent;color:inherit;padding:0;font-size:inherit">k8s</code> モジュールの仕組み</h1>
+  <p>kubernetes.core コレクションが kube-apiserver を叩くまでの流れ・冪等性・認証・落とし穴</p>
+</header>
+
+<section>
+  <div class="toc">
+    <h3>目次</h3>
+    <ol>
+      <li><a href="#tldr">結論（TL;DR）</a></li>
+      <li><a href="#what">k8s モジュールとは何か（kubernetes.core コレクション）</a></li>
+      <li><a href="#arch">アーキテクチャ — Ansible → Python → kube-apiserver</a></li>
+      <li><a href="#flow">1 タスクが実行されるまでの流れ</a></li>
+      <li><a href="#auth">認証・接続オプションの仕組み</a></li>
+      <li><a href="#idem">冪等性とサーバーサイドアプライ</a></li>
+      <li><a href="#modules">関連モジュール一覧（k8s_info / k8s_exec / helm 等）</a></li>
+      <li><a href="#example">実例 Playbook</a></li>
+      <li><a href="#vs">kubectl apply との違い</a></li>
+      <li><a href="#pitfalls">落とし穴とベストプラクティス</a></li>
+      <li><a href="#oc-design">応用：oc コマンドを k8s モジュールと同じように実装するなら</a></li>
+      <li><a href="#refs">参考リンク</a></li>
+    </ol>
+  </div>
+</section>
+
+<section id="tldr">
+  <h2>結論（TL;DR）</h2>
+  <div class="tldr">
+    <h3>3 行でまとめると</h3>
+    <p>Ansible の <code>k8s</code> モジュールは <span class="ans-text">kubernetes.core コレクション</span>に同梱された Python モジュールで、内部的には公式 <code>kubernetes</code> Python クライアント（OpenAPI 由来の dynamic client）を介して <span class="k8s-text">kube-apiserver の REST API</span>を直接叩きます。<code>kubectl</code> バイナリは <strong>使いません</strong>。</p>
+    <p>Ansible の哲学である<strong>宣言的・冪等</strong>を満たすため、<code>state: present</code> ではまず <code>GET</code> で現在状態を取得し、<code>diff</code> を計算してから <code>PATCH</code>（または Server-Side Apply の <code>apply</code>）を発行します。差分がなければ <span class="ok-text">changed=false</span> を返します。</p>
+    <p>接続情報（kubeconfig / トークン / context / namespace）は<strong>モジュール引数</strong>または <code>K8S_AUTH_*</code> 環境変数で指定し、対象クラスタの kube-apiserver と TCP/TLS で会話できる <strong>Ansible 制御ノード</strong>上でモジュールが実行されます（リモートホスト経由でなくても OK）。</p>
+  </div>
+</section>
+
+<section id="what">
+  <h2>k8s モジュールとは何か</h2>
+  <p>
+    <strong>k8s モジュール</strong>は <code>kubernetes.core</code> という Ansible コレクションに含まれる Kubernetes リソース操作モジュール群の中心です。
+    Ansible 2.10 でコレクション分離が行われた際に旧 <code>community.kubernetes</code> から名前を変えて <span class="k8s-text">Red Hat 公式</span>として再編成された経緯があります。
+    Ansible Galaxy または ansible-builder 経由でインストールします。
+  </p>
+
+  <pre><code><span class="cmt"># コレクションのインストール</span>
+<span class="cmd">ansible-galaxy</span> collection install kubernetes.core
+
+<span class="cmt"># 依存 Python クライアント（制御ノードに必須）</span>
+<span class="cmd">pip</span> install kubernetes PyYAML jsonpatch</code></pre>
+
+  <div class="grid">
+    <div class="card ans">
+      <h4>提供元</h4>
+      <p>Red Hat / Ansible 公式の <code>kubernetes.core</code> コレクション。</p>
+    </div>
+    <div class="card k8s">
+      <h4>通信方式</h4>
+      <p>kube-apiserver の REST API を直接呼び出し（HTTPS / TLS）。</p>
+    </div>
+    <div class="card ans">
+      <h4>必須依存</h4>
+      <p>制御ノードの Python に <code>kubernetes</code>（公式クライアント）。</p>
+    </div>
+    <div class="card k8s">
+      <h4>扱える対象</h4>
+      <p>API Server が認識する全リソース（CRD を含む）。</p>
+    </div>
+  </div>
+</section>
+
+<section id="arch">
+  <h2>アーキテクチャ — Ansible → Python → kube-apiserver</h2>
+  <p>
+    一般的な Ansible モジュール（<code>shell</code>, <code>file</code>, <code>apt</code> など）は SSH 経由でリモートノードに転送されて実行されますが、
+    <code>k8s</code> モジュールは少し特殊で、<strong>「クラスタとネットワークで会話できるノード」</strong>に対して実行します。
+    多くの場合これは <code>delegate_to: localhost</code> された制御ノード自身です。
+  </p>
+
+  <div class="arch">
+    <div class="arch-title">k8s モジュール実行時のレイヤ構造</div>
+
+    <div class="arch-layer cols-1">
+      <div class="arch-box ans">
+        <strong>Playbook / Role</strong>
+        <span class="sub">YAML タスク定義 — definition / src / state を渡す</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ ansible-core が Python モジュールを転送・実行</div>
+    <div class="arch-layer cols-1">
+      <div class="arch-box ans">
+        <strong>kubernetes.core.k8s モジュール（Python）</strong>
+        <span class="sub">引数バリデーション / 認証情報の解決 / リソース差分計算</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ import kubernetes</div>
+    <div class="arch-layer cols-1">
+      <div class="arch-box bridge">
+        <strong>kubernetes Python クライアント（dynamic client）</strong>
+        <span class="sub">OpenAPI Discovery / urllib3 で HTTPS リクエスト構築</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ HTTPS (TLS) / Bearer Token または mTLS</div>
+    <div class="arch-layer cols-1">
+      <div class="arch-box k8s">
+        <strong>kube-apiserver</strong>
+        <span class="sub">認証 → 認可（RBAC）→ Admission → etcd 書き込み</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ controller-manager / scheduler / kubelet が後続処理</div>
+    <div class="arch-layer cols-1">
+      <div class="arch-box kernel">
+        <strong>etcd / 各ノードのコンテナランタイム</strong>
+        <span class="sub">実際のリソース反映（Pod 起動 / Service ルーティング等）</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <strong class="tag">ポイント</strong>
+    <p style="margin:0">Ansible が直接話しかけるのは <strong>kube-apiserver だけ</strong>です。Pod の起動・スケジューリングといった実体反映は Kubernetes 側のコントローラー責務で、Ansible は「宣言した状態を API に届ける」役割に徹します。</p>
+  </div>
+</section>
+
+<section id="flow">
+  <h2>1 タスクが実行されるまでの流れ</h2>
+  <p><code>state: present</code> で Deployment を作成・更新する場合の内部処理：</p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <strong>Playbook が引数を解決</strong>
+      <span><code>definition</code> / <code>src</code> / <code>template</code> から最終的なマニフェスト dict を組み立て、認証情報（<code>kubeconfig</code> / <code>host</code> / <code>api_key</code>）を確定。</span>
+    </div>
+    <div class="flow-step">
+      <strong>kubernetes クライアントを初期化</strong>
+      <span><code>config.load_kube_config()</code> または <code>config.load_incluster_config()</code> 相当を呼び、<code>DynamicClient</code> を生成。API Discovery で <code>apiVersion + kind</code> から正しい REST パスを解決。</span>
+    </div>
+    <div class="flow-step">
+      <strong>GET で現状を取得</strong>
+      <span>同 namespace / 同名のリソースが既に存在するかを <code>GET /apis/&lt;group&gt;/&lt;ver&gt;/namespaces/&lt;ns&gt;/&lt;plural&gt;/&lt;name&gt;</code> で確認。</span>
+    </div>
+    <div class="flow-step">
+      <strong>差分を計算</strong>
+      <span>取得した現状と望ましい状態を <code>jsonpatch</code> または Server-Side Apply 用ペイロードに変換。差分が空なら <span class="ok-text">changed=false</span> で終了。</span>
+    </div>
+    <div class="flow-step">
+      <strong>API に書き込み</strong>
+      <span>新規なら <code>POST</code>、既存なら <code>PATCH</code>（既定は Strategic Merge Patch、<code>apply: true</code> で Server-Side Apply）。失敗時は <code>retries</code> オプションで指数バックオフ。</span>
+    </div>
+    <div class="flow-step">
+      <strong>結果を Ansible に返す</strong>
+      <span>レスポンス全体を <code>result</code> として返却。<code>wait: true</code> の場合はリソースが Ready 条件を満たすまで再 GET でポーリング。</span>
+    </div>
+  </div>
+</section>
+
+<section id="auth">
+  <h2>認証・接続オプションの仕組み</h2>
+  <p>
+    認証情報の解決順序は <strong>「モジュール引数 → 環境変数 → kubeconfig → in-cluster」</strong>です。
+    内部実装上は kubernetes クライアントの <code>load_kube_config()</code> / <code>load_incluster_config()</code> を呼び分けます。
+  </p>
+
+  <table>
+    <thead>
+      <tr><th class="nowrap">方式</th><th>指定方法</th><th>内部で起きること</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="nowrap"><code>kubeconfig</code> ファイル</td>
+        <td>モジュール引数 <code>kubeconfig: ~/.kube/config</code> または環境変数 <code>K8S_AUTH_KUBECONFIG</code>。未指定なら標準パスを自動探索。</td>
+        <td><code>load_kube_config()</code> が context / cluster / user を読み込み、CA・クライアント証明書・トークンを抽出。</td>
+      </tr>
+      <tr>
+        <td class="nowrap">明示トークン</td>
+        <td><code>host</code>, <code>api_key</code>, <code>ca_cert</code> を直接指定。</td>
+        <td>kubeconfig を完全に無視し、<code>Configuration</code> オブジェクトを手組み。CI/CD で Secret から渡すケースで便利。</td>
+      </tr>
+      <tr>
+        <td class="nowrap">In-cluster</td>
+        <td>Pod 内で実行し <code>incluster: true</code>（または引数省略でフォールバック）。</td>
+        <td><code>/var/run/secrets/kubernetes.io/serviceaccount/</code> 配下のトークンと CA を読み、API Server を <code>kubernetes.default.svc</code> として参照。</td>
+      </tr>
+      <tr>
+        <td class="nowrap">OIDC / exec プラグイン</td>
+        <td>kubeconfig 中の <code>users.user.exec</code> セクション（gcloud, aws-iam-authenticator など）。</td>
+        <td>クライアント側で外部コマンドを起動してトークンを取得 → リクエストヘッダに付与。EKS / GKE / AKS で頻出。</td>
+      </tr>
+      <tr>
+        <td class="nowrap">プロキシ</td>
+        <td><code>proxy</code> 引数または <code>HTTPS_PROXY</code> 環境変数。</td>
+        <td>urllib3 のプロキシハンドラ経由で kube-apiserver に到達。エアギャップ環境で重要。</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong class="tag">注意</strong>
+    <p style="margin:0">「<code>kubectl get pods</code> は通るのに Ansible からは通らない」場合、最初に疑うのは <strong>制御ノードと Pod 内コンテナの kubeconfig パス違い</strong>と <strong>exec プラグインの PATH 欠落</strong>です。<code>ansible -vvv</code> でモジュール実行時の Python ログまで確認すると一発で切り分けられます。</p>
+  </div>
+</section>
+
+<section id="idem">
+  <h2>冪等性とサーバーサイドアプライ</h2>
+  <p>
+    <strong>冪等性</strong>は Ansible モジュールの存在意義です。<code>k8s</code> モジュールは「現状と望ましい状態の差分」を見て初めて変更を発行するため、
+    同じ Playbook を 10 回流しても <span class="ok-text">changed</span> が立つのは差分があった最初の 1 回だけです。
+  </p>
+
+  <div class="idem">
+    <div class="col ok">
+      <h4>① 現状（GET）</h4>
+      <pre><code><span class="key">replicas</span>: <span class="num">2</span>
+<span class="key">image</span>:
+  <span class="str">nginx:1.25</span></code></pre>
+    </div>
+    <div class="col changed">
+      <h4>② 望ましい状態</h4>
+      <pre><code><span class="key">replicas</span>: <span class="num">3</span>
+<span class="key">image</span>:
+  <span class="str">nginx:1.25</span></code></pre>
+    </div>
+    <div class="col ok">
+      <h4>③ 発行される PATCH</h4>
+      <pre><code><span class="cmt"># 差分のみ送る</span>
+{ <span class="str">"spec"</span>: {
+   <span class="str">"replicas"</span>: <span class="num">3</span> }}</code></pre>
+    </div>
+  </div>
+
+  <h3>3 つの apply モード</h3>
+  <table>
+    <thead>
+      <tr><th class="nowrap">モード</th><th>挙動</th><th>使いどころ</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="nowrap">Strategic Merge Patch<br><span style="color:var(--muted);font-size:0.8rem">（既定 / <code>apply: false</code>）</span></td>
+        <td>Kubernetes が定義する戦略的マージ。<code>containers</code> リストなど <code>patchMergeKey</code> 付きフィールドは name で同一視されて差分計算される。</td>
+        <td>標準的な作成・更新。多くのケースでこれで十分。</td>
+      </tr>
+      <tr>
+        <td class="nowrap">Server-Side Apply<br><span style="color:var(--muted);font-size:0.8rem">（<code>apply: true</code>）</span></td>
+        <td>Kubernetes 1.22+ の SSA を使用。<strong>フィールド所有権</strong>を <code>managedFields</code> に記録し、複数の管理者（kubectl / Argo CD / Ansible）が同一リソースを上書きし合うのを防ぐ。</td>
+        <td>GitOps と並走させる場合、Operator と共存する場合に強く推奨。</td>
+      </tr>
+      <tr>
+        <td class="nowrap"><code>force: true</code></td>
+        <td>競合（既存の所有権）を強制的に奪う。</td>
+        <td>意図的に上書きしたい場合のみ。常用すると SSA の利点が失われる。</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="modules">
+  <h2>関連モジュール一覧</h2>
+  <p><code>kubernetes.core</code> コレクションには <code>k8s</code> 以外にも目的別のモジュールが揃っています。</p>
+  <table>
+    <thead>
+      <tr><th class="nowrap">モジュール</th><th>役割</th><th>典型ユース</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap"><code>kubernetes.core.k8s</code></td><td>リソースの作成 / 更新 / 削除</td><td><code>kubectl apply</code> 相当の中心モジュール。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.k8s_info</code></td><td>リソースの取得（Read-only）</td><td>条件分岐用の <code>register</code>。<code>changed</code> を絶対立てない。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.k8s_scale</code></td><td>レプリカ数だけを変更</td><td>HPA を一時停止して手動スケール。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.k8s_exec</code></td><td>既存 Pod 内でコマンド実行</td><td><code>kubectl exec</code> 相当。マイグレーション実行など。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.k8s_log</code></td><td>Pod ログ取得</td><td>デプロイ後の動作確認、デバッグ収集。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.k8s_cp</code></td><td>Pod とローカル間のファイルコピー</td><td><code>kubectl cp</code> 相当。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.k8s_drain</code></td><td>ノードの cordon / drain</td><td>クラスタアップグレード前処理。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.helm</code></td><td>Helm チャートのインストール</td><td>制御ノードの <code>helm</code> CLI を呼ぶラッパー。<strong>これだけ kubectl/helm バイナリ依存</strong>。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.helm_info</code></td><td>リリース情報の取得</td><td>既存リリースの存在確認。</td></tr>
+      <tr><td class="nowrap"><code>kubernetes.core.k8s_json_patch</code></td><td>RFC 6902 JSON Patch を発行</td><td>SSA でも SMP でも難しい局所更新。</td></tr>
+    </tbody>
+  </table>
+
+  <h3>インベントリプラグインも同梱</h3>
+  <p><code>kubernetes.core.k8s</code> はインベントリプラグインも提供しており、<strong>Pod を Ansible の管理ホストとして自動列挙</strong>できます。<code>k8s_exec</code> と組み合わせると Pod 内へのプロビジョニングが Ansible の文法で書けます。</p>
+</section>
+
+<section id="example">
+  <h2>実例 Playbook</h2>
+
+  <h3>① 単純な Deployment / Service 作成</h3>
+  <pre><code>- <span class="key">hosts</span>: <span class="str">localhost</span>
+  <span class="key">connection</span>: <span class="str">local</span>
+  <span class="key">gather_facts</span>: <span class="num">false</span>
+  <span class="key">tasks</span>:
+    - <span class="key">name</span>: <span class="str">Ensure namespace exists</span>
+      <span class="key">kubernetes.core.k8s</span>:
+        <span class="key">state</span>: <span class="str">present</span>
+        <span class="key">definition</span>:
+          <span class="key">apiVersion</span>: <span class="str">v1</span>
+          <span class="key">kind</span>: <span class="str">Namespace</span>
+          <span class="key">metadata</span>:
+            <span class="key">name</span>: <span class="str">web</span>
+
+    - <span class="key">name</span>: <span class="str">Deploy nginx</span>
+      <span class="key">kubernetes.core.k8s</span>:
+        <span class="key">state</span>: <span class="str">present</span>
+        <span class="key">apply</span>: <span class="num">true</span>          <span class="cmt"># Server-Side Apply</span>
+        <span class="key">src</span>: <span class="str">files/nginx-deploy.yaml</span>
+        <span class="key">wait</span>: <span class="num">true</span>
+        <span class="key">wait_condition</span>:
+          <span class="key">type</span>: <span class="str">Available</span>
+          <span class="key">status</span>: <span class="str">"True"</span>
+        <span class="key">wait_timeout</span>: <span class="num">300</span></code></pre>
+
+  <h3>② Jinja2 テンプレートで動的生成</h3>
+  <pre><code>- <span class="key">name</span>: <span class="str">Render and apply</span>
+  <span class="key">kubernetes.core.k8s</span>:
+    <span class="key">state</span>: <span class="str">present</span>
+    <span class="key">template</span>: <span class="str">templates/configmap.yaml.j2</span>
+  <span class="key">vars</span>:
+    <span class="key">app_name</span>: <span class="str">payments</span>
+    <span class="key">log_level</span>: <span class="str">debug</span></code></pre>
+
+  <h3>③ k8s_info で条件分岐</h3>
+  <pre><code>- <span class="key">name</span>: <span class="str">Check if migration job finished</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">api_version</span>: <span class="str">batch/v1</span>
+    <span class="key">kind</span>: <span class="str">Job</span>
+    <span class="key">name</span>: <span class="str">db-migrate</span>
+    <span class="key">namespace</span>: <span class="str">prod</span>
+  <span class="key">register</span>: <span class="str">job</span>
+
+- <span class="key">name</span>: <span class="str">Trigger only when previous job succeeded</span>
+  <span class="key">kubernetes.core.k8s</span>:
+    <span class="key">state</span>: <span class="str">present</span>
+    <span class="key">src</span>: <span class="str">files/app-deploy.yaml</span>
+  <span class="key">when</span>: <span class="str">job.resources[0].status.succeeded | default(0) | int &gt; 0</span></code></pre>
+
+  <h3>④ Pod 内コマンド実行（マイグレーション）</h3>
+  <pre><code>- <span class="key">name</span>: <span class="str">Run schema migration inside app pod</span>
+  <span class="key">kubernetes.core.k8s_exec</span>:
+    <span class="key">namespace</span>: <span class="str">prod</span>
+    <span class="key">pod</span>: <span class="str">app-7d8f-xxxxx</span>
+    <span class="key">command</span>: <span class="str">/app/manage.py migrate</span></code></pre>
+</section>
+
+<section id="vs">
+  <h2>kubectl apply との違い</h2>
+  <div class="vs-grid">
+    <div class="vs-card left">
+      <div class="vs-mode">kubectl apply</div>
+      <div class="vs-title">手続き的・スクリプトから呼ぶ前提</div>
+      <ul>
+        <li>シェルから直接 / CI のコマンドステップとして実行</li>
+        <li>差分判定は client-side か server-side apply で kubectl 自身が実施</li>
+        <li>失敗時のリトライ・条件待ちは自前で書く必要</li>
+        <li>変数展開やテンプレートは <code>envsubst</code> / Helm / Kustomize に頼る</li>
+        <li>戻り値は exit code とテキスト出力のみ</li>
+      </ul>
+    </div>
+    <div class="vs-card right">
+      <div class="vs-mode">kubernetes.core.k8s</div>
+      <div class="vs-title">宣言的・冪等・Ansible 全体に統合</div>
+      <ul>
+        <li>Playbook の他タスク（OS 設定 / DB / 外部 API）と同じ実行コンテキスト</li>
+        <li><code>wait</code> / <code>wait_condition</code> でリソース Ready まで待機を <strong>1 行</strong>で表現</li>
+        <li>Jinja2 テンプレートや Ansible 変数とシームレスに連携</li>
+        <li><code>register</code> したレスポンスを後続タスクで構造化された dict として参照</li>
+        <li>失敗時の <code>retries</code> / <code>until</code> / <code>rescue</code> が標準利用可能</li>
+      </ul>
+    </div>
+  </div>
+  <p>「単に YAML を適用するだけ」なら <code>kubectl apply -f</code> のほうがシンプルですが、<strong>「VM 構築 → Helm でクラスタ初期化 → アプリ Deploy → 監視設定 → 動作確認」</strong>のような<span class="ans-text">エンドツーエンドのプロビジョニング</span>では Ansible の表現力が活きます。</p>
+</section>
+
+<section id="pitfalls">
+  <h2>落とし穴とベストプラクティス</h2>
+
+  <div class="callout danger">
+    <strong class="tag">落とし穴 1</strong>
+    <p><code>connection: ssh</code> のまま <code>k8s</code> モジュールを実行すると、<strong>リモートノード上に Python の kubernetes クライアントが必要</strong>になります。多くの場合は <code>delegate_to: localhost</code> または <code>connection: local</code> にして制御ノードで実行するのが正解。</p>
+  </div>
+
+  <div class="callout danger">
+    <strong class="tag">落とし穴 2</strong>
+    <p>EKS / GKE で exec プラグイン（<code>aws</code> / <code>gke-gcloud-auth-plugin</code>）が PATH に無いと、<code>kubectl</code> は通っても Ansible の Python サブプロセス内で <strong>FileNotFoundError</strong> になります。<code>ansible-playbook</code> を実行する環境の PATH に必ず含めること。</p>
+  </div>
+
+  <div class="callout">
+    <strong class="tag">落とし穴 3</strong>
+    <p>Server-Side Apply を使わず Strategic Merge で書き続けると、<strong>Operator や Argo CD と同じフィールドを取り合って無限に <code>changed</code> が立つ</strong>「ピンポン現象」が起きることがあります。共存環境では <code>apply: true</code> を既定にしてフィールド所有権を分離するのが安全。</p>
+  </div>
+
+  <div class="callout">
+    <strong class="tag">落とし穴 4</strong>
+    <p><code>wait: true</code> を付けずに Deployment を作成し、直後に Service / Ingress を作りに行くと、Pod が Ready になる前に外部からアクセスが来てしまうケースがあります。<code>wait_condition</code> で <code>Available=True</code> を待つのがベター。</p>
+  </div>
+
+  <div class="callout tip">
+    <strong class="tag">Tip 1</strong>
+    <p>大規模なマニフェストは <code>src</code>（既存 YAML ファイル）/ <code>template</code>（Jinja2）/ <code>definition</code>（インライン dict）のいずれかで指定します。<strong>変数展開を伴うなら template、手元の YAML をそのまま流すなら src、シンプルなものは definition</strong>、と使い分けると見通しが良くなります。</p>
+  </div>
+
+  <div class="callout tip">
+    <strong class="tag">Tip 2</strong>
+    <p>CI/CD では <code>check_mode</code>（<code>ansible-playbook --check --diff</code>）を活用すると、本番適用前に <strong>kube-apiserver が計算した差分</strong>を確認できます。<code>diff</code> は YAML 単位の見やすい形式で表示されます。</p>
+  </div>
+
+  <div class="callout tip">
+    <strong class="tag">Tip 3</strong>
+    <p>Secret や ConfigMap を Ansible 変数経由で渡す場合は <strong>Ansible Vault</strong>で暗号化し、Playbook 内では <code>no_log: true</code> を付けてログ流出を防ぐと安全です。</p>
+  </div>
+</section>
+
+<section id="oc-design">
+  <h2>応用：<code>oc</code> コマンドを k8s モジュールと同じように実装するなら</h2>
+  <p>
+    Red Hat OpenShift の <code>oc</code> は <code>kubectl</code> の上位互換 CLI で、<strong>Project</strong> / <strong>Route</strong> /
+    <strong>BuildConfig</strong> / <strong>ImageStream</strong> / <strong>DeploymentConfig</strong> といった OpenShift 固有リソース、
+    そして <code>oc new-app</code> や <code>oc login</code> のような<strong>高レベルコマンド</strong>を持ちます。
+    これを <code>kubernetes.core.k8s</code> と同じ設計思想でモジュール化する場合、何を作り、何を流用すべきかを整理します。
+  </p>
+
+  <div class="callout tip">
+    <strong class="tag">先に結論</strong>
+    <p style="margin:0">既に <a href="https://github.com/openshift/community.okd" target="_blank" rel="noopener"><code>community.okd</code> コレクション</a>が同じ思想で実装済みで、内部的に <code>kubernetes.core</code> を継承して OpenShift API を扱います。<strong>自前実装するなら、その設計を再構築するのが正解</strong>です。以下はその根拠と内部構造の解説。</p>
+  </div>
+
+  <h3>方針 1 — oc バイナリは使わない</h3>
+  <p>
+    <code>kubernetes.core.k8s</code> が <code>kubectl</code> を呼ばないのと同じく、<code>oc</code> バイナリも呼びません。
+    OpenShift の API Server は <strong>kube-apiserver + openshift-apiserver の集約 (aggregated API)</strong> 構成で、
+    どちらも同じエンドポイントから REST で叩けます。<code>kubernetes</code> Python クライアントの <code>DynamicClient</code> は
+    API Discovery 時に両方のグループを自動で発見するため、<span class="k8s-text">Kubernetes リソースと OpenShift リソースを同じコードパスで扱える</span>のが鍵です。
+  </p>
+
+  <div class="arch">
+    <div class="arch-title">OpenShift API Server の集約構造</div>
+    <div class="arch-layer cols-1">
+      <div class="arch-box ans">
+        <strong>openshift.core.oc モジュール（Python）</strong>
+        <span class="sub">引数解決 / 認証 / 差分計算（k8s モジュールと同じ枠組み）</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ kubernetes Python クライアント（DynamicClient）</div>
+    <div class="arch-layer cols-2">
+      <div class="arch-box k8s">
+        <strong>kube-apiserver</strong>
+        <span class="sub">/api/v1, /apis/apps/v1, /apis/batch/v1 …<br>Pod / Deployment / Service / ConfigMap</span>
+      </div>
+      <div class="arch-box bridge">
+        <strong>openshift-apiserver</strong>
+        <span class="sub">/apis/project.openshift.io/v1<br>/apis/route.openshift.io/v1<br>/apis/build.openshift.io/v1 …</span>
+      </div>
+    </div>
+    <div class="arrow-down">▼ aggregated API として 1 つのエンドポイントから提供</div>
+    <div class="arch-layer cols-1">
+      <div class="arch-box kernel">
+        <strong>https://api.&lt;cluster&gt;:6443</strong>
+        <span class="sub">クライアントから見ると単一の API Server に見える</span>
+      </div>
+    </div>
+  </div>
+
+  <h3>方針 2 — OpenShift 固有リソースを表でマッピング</h3>
+  <p>
+    実装すべきリソースは <code>oc</code> サブコマンドから逆引きすると洗い出せます。
+    どれも「API グループ + Kind + 名前」さえ分かれば <code>DynamicClient</code> でそのまま CRUD でき、
+    冪等性ロジック（GET → diff → PATCH / SSA）は k8s モジュールと完全に同じものを使い回せます。
+  </p>
+
+  <table>
+    <thead>
+      <tr><th class="nowrap">oc サブコマンド</th><th>対応リソース</th><th class="nowrap">API group</th><th>特殊事情</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap"><code>oc new-project</code></td><td><code>ProjectRequest</code></td><td class="nowrap"><code>project.openshift.io</code></td><td><code>Project</code> ではなく <code>ProjectRequest</code> を POST する（権限委譲のため）。</td></tr>
+      <tr><td class="nowrap"><code>oc expose svc</code></td><td><code>Route</code></td><td class="nowrap"><code>route.openshift.io</code></td><td>Ingress と排他ではなく共存可。<code>tls.termination</code> を扱う必要あり。</td></tr>
+      <tr><td class="nowrap"><code>oc new-build</code></td><td><code>BuildConfig</code></td><td class="nowrap"><code>build.openshift.io</code></td><td>Source / Strategy / Output の 3 セクション構成。</td></tr>
+      <tr><td class="nowrap"><code>oc start-build</code></td><td><code>Build</code>（サブリソース）</td><td class="nowrap"><code>build.openshift.io</code></td><td><code>/buildconfigs/&lt;n&gt;/instantiate</code> という <strong>非標準サブリソース</strong>を叩く。</td></tr>
+      <tr><td class="nowrap"><code>oc tag</code></td><td><code>ImageStream</code> / <code>ImageStreamTag</code></td><td class="nowrap"><code>image.openshift.io</code></td><td>タグ単位の更新は <code>ImageStreamTag</code> を PUT。</td></tr>
+      <tr><td class="nowrap"><code>oc rollout</code></td><td><code>DeploymentConfig</code></td><td class="nowrap"><code>apps.openshift.io</code></td><td>レガシー（OpenShift 4.x では Deployment 推奨）。<code>/instantiate</code> サブリソースで手動ロールアウト。</td></tr>
+      <tr><td class="nowrap"><code>oc adm policy add-scc-to-user</code></td><td><code>SecurityContextConstraints</code></td><td class="nowrap"><code>security.openshift.io</code></td><td>クラスタスコープ。RBAC との関係に注意。</td></tr>
+      <tr><td class="nowrap"><code>oc whoami</code></td><td><code>User</code> / <code>~/users/me</code></td><td class="nowrap"><code>user.openshift.io</code></td><td>認証確認用。冪等性は不要。</td></tr>
+    </tbody>
+  </table>
+
+  <h3>方針 3 — <code>oc login</code> の OAuth フローを再現</h3>
+  <p>
+    <code>oc login -u user -p pass</code> の正体は <strong>OAuth2 の Implicit Grant</strong>です。
+    <code>/oauth/authorize</code> に <code>response_type=token</code> で BASIC 認証ヘッダを付けて GET すると、
+    302 リダイレクトの Location URL フラグメントに <code>access_token=...</code> が埋まって返ってきます。
+    これを抽出して以降のリクエストの <code>Authorization: Bearer</code> ヘッダに使うのが <code>oc</code> の動きです。
+  </p>
+
+  <pre><code><span class="cmt"># openshift.core.oc_login の内部実装イメージ（Python）</span>
+<span class="key">import</span> requests, re, urllib.parse
+
+<span class="key">def</span> <span class="cmd">login</span>(host, username, password, ca_cert):
+    <span class="cmt"># 1. /.well-known/oauth-authorization-server で認可サーバを発見</span>
+    meta = requests.get(<span class="str">f"{host}/.well-known/oauth-authorization-server"</span>,
+                        verify=ca_cert).json()
+    auth_url = meta[<span class="str">"authorization_endpoint"</span>]
+
+    <span class="cmt"># 2. challenging-client として Implicit Grant をリクエスト</span>
+    params = {
+        <span class="str">"response_type"</span>: <span class="str">"token"</span>,
+        <span class="str">"client_id"</span>:     <span class="str">"openshift-challenging-client"</span>,
+    }
+    r = requests.get(auth_url, params=params,
+                     auth=(username, password),
+                     headers={<span class="str">"X-CSRF-Token"</span>: <span class="str">"1"</span>},
+                     allow_redirects=<span class="num">False</span>, verify=ca_cert)
+
+    <span class="cmt"># 3. Location ヘッダのフラグメントから access_token を抽出</span>
+    fragment = urllib.parse.urlparse(r.headers[<span class="str">"Location"</span>]).fragment
+    token = urllib.parse.parse_qs(fragment)[<span class="str">"access_token"</span>][<span class="num">0</span>]
+
+    <span class="cmt"># 4. 以降は k8s モジュールと同じ Bearer Token として使う</span>
+    <span class="key">return</span> token</code></pre>
+
+  <p>
+    取得したトークンは <code>K8S_AUTH_API_KEY</code> 環境変数 / モジュール引数 <code>api_key</code> としてそのまま
+    <code>kubernetes.core.k8s</code> に渡せます。<strong>「oc_login で token を取り、以降は k8s モジュールで CRUD」</strong>
+    という二段構成が最小実装です。
+  </p>
+
+  <h3>方針 4 — 高レベルコマンドは「複合タスク」に分解</h3>
+  <p>
+    <code>oc new-app nginx</code> は 1 つの API ではありません。サーバー側で以下の <strong>4〜5 リソース</strong>を
+    まとめて作成しています。モジュール側で同じ分解をして、それぞれを冪等に処理すれば再現できます。
+  </p>
+
+  <div class="flow">
+    <div class="flow-step">
+      <strong>ImageStream を作成</strong>
+      <span>イメージの参照を OpenShift 内部レジストリに登録（<code>image.openshift.io/v1/imagestreams</code>）。</span>
+    </div>
+    <div class="flow-step">
+      <strong>BuildConfig を作成（Git ソース指定時のみ）</strong>
+      <span>S2I ビルドの定義を <code>build.openshift.io/v1/buildconfigs</code> に POST。</span>
+    </div>
+    <div class="flow-step">
+      <strong>Deployment / DeploymentConfig を作成</strong>
+      <span>標準の <code>apps/v1</code> Deployment を使うのが現代流。</span>
+    </div>
+    <div class="flow-step">
+      <strong>Service を作成</strong>
+      <span>標準の <code>v1</code> Service。Pod のラベルセレクタを合わせる。</span>
+    </div>
+    <div class="flow-step">
+      <strong>Route を作成（<code>--expose</code> 時）</strong>
+      <span><code>route.openshift.io/v1/routes</code> を POST。HAProxy ルーターが拾って外部公開。</span>
+    </div>
+  </div>
+
+  <p>
+    各ステップを <code>kubernetes.core.k8s</code> 相当のヘルパー関数で実装し、
+    <strong>1 つでも変更があれば全体の <code>changed=true</code></strong> を返す集計ロジックを足せば、
+    <code>oc new-app</code> と同じ「高レベル冪等タスク」が完成します。
+  </p>
+
+  <h3>提案するモジュール構成</h3>
+  <table>
+    <thead>
+      <tr><th class="nowrap">モジュール</th><th>役割</th><th>k8s 側で十分か</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap"><code>openshift.core.openshift</code></td><td>低レベルの REST ラッパー（<code>k8s</code> の OpenShift 版）</td><td><strong>不要</strong>。kubernetes.core.k8s が OpenShift リソースもそのまま扱える。<span class="warn-text">薄いエイリアスのみで OK</span>。</td></tr>
+      <tr><td class="nowrap"><code>openshift.core.openshift_auth</code></td><td><code>oc login</code> 相当の OAuth トークン取得</td><td><span class="ans-text">必要</span>。kubernetes クライアントは Implicit Grant を実装していない。</td></tr>
+      <tr><td class="nowrap"><code>openshift.core.openshift_process</code></td><td><code>oc process</code> 相当の Template 展開</td><td><span class="ans-text">必要</span>。Template の Parameter 注入を <code>/processedtemplates</code> サブリソースに POST。</td></tr>
+      <tr><td class="nowrap"><code>openshift.core.openshift_route</code></td><td>Route の便利モジュール（TLS / 証明書 / wildcard policy）</td><td><span class="warn-text">薄いラッパーでよい</span>。本体は k8s モジュールで作れるが、TLS 設定の構造を引数化すると使いやすい。</td></tr>
+      <tr><td class="nowrap"><code>openshift.core.openshift_build</code></td><td><code>oc start-build</code> 相当（<code>/instantiate</code> サブリソース）</td><td><span class="ans-text">必要</span>。標準 CRUD ではないため k8s モジュールでは扱いにくい。</td></tr>
+      <tr><td class="nowrap"><code>openshift.core.openshift_import_image</code></td><td><code>oc import-image</code>（外部レジストリの取り込み）</td><td><span class="ans-text">必要</span>。<code>ImageStreamImport</code> という即時実行リソースを POST する特殊仕様。</td></tr>
+      <tr><td class="nowrap"><code>openshift.core.openshift_adm_policy</code></td><td>SCC / Role の付与ユーティリティ</td><td><span class="warn-text">あれば便利</span>。RoleBinding を直接書くより読みやすい。</td></tr>
+    </tbody>
+  </table>
+
+  <h3>設計の要点まとめ</h3>
+  <div class="grid">
+    <div class="card ok">
+      <h4>① 再利用最大化</h4>
+      <p>標準 CRUD は <code>kubernetes.core.k8s</code> に丸投げ。OpenShift 専用ロジックだけ薄く足す。</p>
+    </div>
+    <div class="card ans">
+      <h4>② 認証だけは別実装</h4>
+      <p><code>oc login</code> の OAuth Implicit Grant は kubernetes クライアントが持っていないので、新規モジュールで実装する。</p>
+    </div>
+    <div class="card k8s">
+      <h4>③ サブリソース系は専用モジュール</h4>
+      <p><code>/instantiate</code> / <code>/processedtemplates</code> / <code>imagestreamimports</code> など、CRUD で表現できないものは個別モジュール化。</p>
+    </div>
+    <div class="card warn">
+      <h4>④ 高レベルは分解して冪等化</h4>
+      <p><code>oc new-app</code> 系は内部で複数リソース作成。1 モジュール内で順序立てて作成し、全体 <code>changed</code> を集約。</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong class="tag">補足</strong>
+    <p style="margin:0"><code>community.okd</code> はまさにこの方針で書かれており、<code>openshift_auth</code> / <code>openshift_route</code> / <code>openshift_process</code> / <code>openshift_import_image</code> / <code>openshift_adm_prune_deployments</code> といったモジュールを提供しつつ、CRUD は <code>kubernetes.core.k8s</code> を継承しています。<strong>「足りないところだけ足す」設計の好例</strong>として一読の価値があります。</p>
+  </div>
+</section>
+
+<section id="refs">
+  <h2>参考リンク</h2>
+  <ul>
+    <li><a href="https://docs.ansible.com/ansible/latest/collections/kubernetes/core/index.html" target="_blank" rel="noopener">kubernetes.core コレクション公式ドキュメント</a></li>
+    <li><a href="https://docs.ansible.com/ansible/latest/collections/kubernetes/core/k8s_module.html" target="_blank" rel="noopener">kubernetes.core.k8s モジュール — パラメータ一覧</a></li>
+    <li><a href="https://github.com/ansible-collections/kubernetes.core" target="_blank" rel="noopener">ansible-collections/kubernetes.core — ソースコード</a></li>
+    <li><a href="https://github.com/kubernetes-client/python" target="_blank" rel="noopener">kubernetes-client/python — モジュールが内部で使う公式 Python クライアント</a></li>
+    <li><a href="https://kubernetes.io/docs/reference/using-api/server-side-apply/" target="_blank" rel="noopener">Kubernetes 公式 — Server-Side Apply</a></li>
+    <li><a href="https://kubernetes.io/docs/concepts/overview/kubernetes-api/" target="_blank" rel="noopener">Kubernetes API 概要（kube-apiserver の役割）</a></li>
+    <li><a href="https://github.com/openshift/community.okd" target="_blank" rel="noopener">openshift/community.okd — oc 相当を Ansible コレクション化した参考実装</a></li>
+    <li><a href="https://docs.openshift.com/container-platform/latest/rest_api/index.html" target="_blank" rel="noopener">OpenShift REST API リファレンス（openshift-apiserver の全エンドポイント）</a></li>
+    <li><a href="https://docs.openshift.com/container-platform/latest/authentication/configuring-internal-oauth.html" target="_blank" rel="noopener">OpenShift Internal OAuth Server（<code>oc login</code> の認可基盤）</a></li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

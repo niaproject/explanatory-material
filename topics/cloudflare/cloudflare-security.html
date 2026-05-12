@@ -573,6 +573,7 @@
     <li><a href="#encryption">① 暗号化を最大化する（SSL/TLS）</a></li>
     <li><a href="#https">② HTTPS を自動化する（強制リダイレクト & HSTS）</a></li>
     <li><a href="#bot">③ ボット対策を有効化する</a></li>
+    <li><a href="#geo">+ 国別アクセス制限（特定国のみ許可 / ブロック）</a></li>
     <li><a href="#extra">+α 合わせて設定すべきもの</a></li>
     <li><a href="#checklist">最終チェックリスト</a></li>
   </ol>
@@ -1044,6 +1045,189 @@
   </div>
 </section>
 
+<!-- ===== 国別アクセス制限 ===== -->
+<section id="geo">
+  <h2>+ 国別アクセス制限（特定国のみ許可 / ブロック）<span class="toggle-icon" aria-hidden="true">▾</span></h2>
+
+  <p>
+    「日本からのアクセスのみ許可したい」「中国・ロシアからは丸ごと弾きたい」といった
+    <strong>地理的アクセス制御（Geo-blocking）</strong> は、Cloudflare の
+    <strong>Custom Rules</strong>（旧 Firewall Rules / WAF Custom Rules）で実現します。
+    Free プランでも <strong>5 ルールまで無料</strong>で組めます。
+  </p>
+
+  <div class="callout warn">
+    <strong>⚠ Cloudflare には「許可リストモード」が無い</strong>：
+    「許可した国以外を全部ブロック」というデフォルト Deny の挙動はネイティブ提供されていません。
+    そのため <strong>「許可国 *以外* を Block」という否定形ルール</strong> として書くのが定石です。
+    AWS の Security Group 的な「Allow を最後に置けばデフォルト Deny」とは設計思想が違うことに注意。
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">1</span>
+      <span class="step-title">Custom Rules ページを開く</span>
+    </div>
+    <div class="step-path">
+      Security <span class="arrow">›</span>
+      <span class="leaf">Security rules</span>
+      <span class="arrow">›</span> Create rule <span class="arrow">›</span> Custom rules
+    </div>
+    <p>
+      旧ダッシュボードでは「Firewall Rules」「WAF › Tools」と呼ばれていた領域が、
+      新ダッシュボードでは <strong>Security rules</strong> ページに Rate Limiting と一緒に統合されています。
+    </p>
+    <p style="font-size:0.85rem;color:var(--muted);">
+      直リンク: <code>https://dash.cloudflare.com/?to=/:account/:zone/security/security-rules</code>
+    </p>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">2</span>
+      <span class="step-title">「特定国のみ許可」する式（ホワイトリスト方式）</span>
+    </div>
+    <p>
+      <strong>許可したい国を <code>not ... in {...}</code> で囲んで Block</strong> するのが基本形。
+      これで「日本以外は全部ブロック = 日本のみ許可」が成立します。
+    </p>
+
+    <h4>パターン A: 日本のみ許可</h4>
+    <pre><code><span class="cmt"># 式 (Expression)</span>
+(<span class="key">ip.geoip.country</span> ne <span class="str">"JP"</span>)
+
+<span class="cmt"># Action</span>
+Block</code></pre>
+
+    <h4>パターン B: 日本＋米国のみ許可（実務での推奨ライン）</h4>
+    <pre><code><span class="cmt"># 式 (Expression)</span>
+(<span class="key">not ip.geoip.country</span> in {<span class="str">"JP" "US"</span>})
+
+<span class="cmt"># Action</span>
+Block</code></pre>
+    <div class="callout tip">
+      <strong>💡 なぜ「JP のみ」より「JP + US」が現実的か</strong>：
+      Googlebot / Bingbot はほぼ <strong>米国 IP 帯</strong>から来ます。JP のみにすると SEO クローラが
+      全滅して数日でインデックスから落ちます。US を足すだけで Googlebot / Bingbot /
+      Slack・X・Discord の OGP プレビュー / 多くの SaaS Webhook（Stripe / SendGrid 等）
+      が自動的に通り、それでいて中国・ロシア・東欧由来の攻撃の大半は遮断できます。
+    </div>
+
+    <h4>パターン C: 管理画面 <code>/admin</code> だけ国制限（推奨）</h4>
+    <pre><code><span class="cmt"># 公開ページは全世界、管理画面だけ JP に絞るパターン</span>
+(<span class="key">http.request.uri.path</span> contains <span class="str">"/admin"</span>
+  and <span class="key">not ip.geoip.country</span> in {<span class="str">"JP"</span>})
+
+<span class="cmt"># Action</span>
+Block</code></pre>
+
+    <div class="callout tip">
+      <strong>💡 サイト全体より「特定パスだけ国制限」の方が安全</strong>：
+      公開コンテンツを国でブロックすると SEO クローラ・海外正規ユーザ・出張中の自社ユーザを
+      巻き込みます。<code>/wp-admin</code> <code>/admin</code> <code>/api/internal</code> など
+      <strong>本来海外から触られる必要のないパスだけ</strong>に絞ると副作用が出ません。
+    </div>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">3</span>
+      <span class="step-title">「特定国だけブロック」する式（ブラックリスト方式）</span>
+    </div>
+    <p>
+      逆に「日本向けサービスだけど、攻撃の多い国だけ弾きたい」というケースは
+      <strong>肯定形の <code>in {...}</code> で Block</strong> します。
+    </p>
+    <pre><code><span class="cmt"># 例: CN / RU / KP からのアクセスをブロック</span>
+(<span class="key">ip.geoip.country</span> in {<span class="str">"CN" "RU" "KP"</span>})
+
+<span class="cmt"># Action</span>
+Block</code></pre>
+    <p>
+      国コードは ISO 3166-1 alpha-2（<code>JP</code> / <code>US</code> / <code>GB</code> /
+      <code>DE</code> / <code>CN</code> / <code>KR</code> / <code>TW</code> …）。
+      GUI のフィールドエディタなら国名選択 UI から選べるのでコードを覚える必要はありません。
+    </p>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">4</span>
+      <span class="step-title">いきなり Block ではなく Managed Challenge から始める</span>
+    </div>
+    <div class="value-grid">
+      <div class="value-box bad">
+        <div class="value-label">✗ いきなり</div>
+        <div class="value-name">Action: Block</div>
+        <div class="value-note">VPN / Cloudflare WARP で国判定がブレた正規ユーザを巻き込みやすい。</div>
+      </div>
+      <div class="value-box good">
+        <div class="value-label">✓ 段階導入</div>
+        <div class="value-name">Action: Managed Challenge</div>
+        <div class="value-note">1〜2 日 Security Events ログを観察 → 誤検知が無いことを確認してから Block へ昇格。</div>
+      </div>
+    </div>
+    <p>
+      ログは <strong>Security › Events</strong> から国別の発生件数が見られるので、
+      正規ユーザ層の国分布を把握してからルールを締めるのが安全です。
+    </p>
+  </div>
+
+  <div class="step-card">
+    <div class="step-head">
+      <span class="step-num">5</span>
+      <span class="step-title">「JP のみ」の場合は Verified Bots を除外する（JP+US ならほぼ不要）</span>
+    </div>
+    <p>
+      <strong>Googlebot / Bingbot は米国 IP 帯から来る</strong>ため、
+      パターン B（JP + US 許可）を採用していれば <strong>地理条件側で自動的に通る</strong>ので
+      Verified Bots 除外は基本不要です。一方パターン A（JP のみ）にすると Googlebot まで
+      弾いて SEO が壊滅するため、<code>cf.client.bot</code> 除外が必須になります。
+    </p>
+
+    <h4>JP のみ許可の場合（cf.client.bot 除外が必須）</h4>
+    <pre><code><span class="cmt"># 日本以外を Block、ただし Verified Bots は許可</span>
+(<span class="key">not ip.geoip.country</span> in {<span class="str">"JP"</span>}
+  and <span class="key">not cf.client.bot</span>)
+
+<span class="cmt"># Action</span>
+Block</code></pre>
+
+    <div class="callout warn">
+      <strong>⚠ <code>cf.client.bot</code> 除外は YandexBot / Baiduspider まで通してしまう</strong>：
+      Cloudflare の Verified Bots には Googlebot / Bingbot だけでなく
+      <strong>YandexBot（露）/ Baiduspider（中）</strong>も含まれます。日本ターゲットのサイトで
+      これらを通す価値はほぼ無く、むしろクロール負荷が高い厄介者です。
+      JP + US 許可なら Googlebot / Bingbot は地理条件で既に通るので、
+      <strong>「<code>cf.client.bot</code> 除外を入れない方が Yandex / Baidu を弾けて合理的」</strong>
+      になります。なお DuckDuckGo は実体が Bing インデックスのリブランドなので、
+      DuckDuckBot を弾いても DuckDuckGo の検索順位には影響しません。
+    </div>
+
+    <div class="callout info">
+      <strong>ℹ より精密に bot を選別したい場合</strong>：
+      <code>cf.verified_bot_category</code> で bot をカテゴリ単位で許可できます。例:
+      <code>cf.verified_bot_category in {"Search Engine Crawler" "Monitoring &amp; Analytics"}</code>
+      とすれば検索エンジンと監視系だけ通せます。
+    </div>
+  </div>
+
+  <div class="callout info">
+    <strong>ℹ Tor / 匿名プロキシは特殊コード <code>T1</code></strong>：
+    Cloudflare は Tor 出口ノード経由を国コード <code>T1</code> として返します。
+    完全に塞ぎたいなら別ルールで <code>(ip.geoip.country eq "T1")</code> を
+    Block / Managed Challenge にすると分かりやすく管理できます。
+  </div>
+
+  <div class="callout warn">
+    <strong>⚠ 国判定は 100% 正確ではない</strong>：
+    GeoIP DB はモバイルキャリアの CGNAT、衛星回線、新規割当 IP で誤判定が起きます。
+    また Cloudflare WARP / iCloud Private Relay 経由のユーザは出口リレーの国で判定されるため、
+    国内ユーザでも US / GB 判定になることがあります。<strong>「国制限 = 完全な防御」と思わず、
+    あくまで攻撃面を減らす一手段</strong>として使ってください。
+  </div>
+</section>
+
 <!-- ===== +α ===== -->
 <section id="extra">
   <h2>+α 合わせて設定すべきもの<span class="toggle-icon" aria-hidden="true">▾</span></h2>
@@ -1151,6 +1335,7 @@
     <li><strong>Browser Integrity Check / Privacy Pass</strong> を ON にした</li>
     <li>ログイン系パスに <strong>Rate Limiting</strong> ルールを 1 つ入れた</li>
     <li><strong>WAF Managed Rules（Free）</strong> を有効化した</li>
+    <li>必要に応じて <strong>国別アクセス制限</strong>（Custom Rules）を入れた（管理画面パスのみ等）</li>
     <li>DNS レコードがすべて <strong>オレンジ雲（Proxied）</strong> になっている</li>
     <li><strong>DNSSEC</strong> を有効化し、レジストラ側に DS レコードを登録した</li>
     <li>Cloudflare アカウントに <strong>2FA</strong> をかけた</li>
