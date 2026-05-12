@@ -475,6 +475,13 @@
     // updated は YYYY-MM-DD HH:mm:ss (ローカル時刻) でソート精度を秒まで確保
     const PAGES = [
       {
+        title: "community.okd モジュール完全ガイド — oc コマンドと Playbook の対応表",
+        desc: "OpenShift 用コレクション community.okd を、oc コマンドとの 1 対 1 対応で解説。oc login ↔ openshift_auth、oc get pod / node / route ↔ k8s_info、oc adm cordon / drain / uncordon ↔ k8s_drain、oc adm policy add-role / add-scc ↔ RoleBinding / k8s_json_patch、oc adm groups ↔ Group リソース、oc adm prune ↔ openshift_adm_prune_*、oc adm top ↔ metrics.k8s.io、oc adm must-gather（command フォールバック）、oc new-project / oc expose / oc process まで、左 CLI ／右 Playbook の対比形式で一覧化。最後にローリングメンテの全部入りサンプル Playbook 付き。",
+        url: "topics/ansible/community-okd-module.html",
+        category: "ansible",
+        updated: "2026-05-12 22:30:00",
+      },
+      {
         title: "Ansible の k8s モジュールの仕組み — kubernetes.core / 内部実装 / 認証 / 冪等性",
         desc: "kubernetes.core コレクションが kubectl ではなく公式 kubernetes Python クライアント経由で kube-apiserver の REST を直接叩く構造を図解。GET → diff → PATCH / Server-Side Apply の冪等性フロー、kubeconfig / トークン / in-cluster / OIDC exec プラグインの認証解決順序、k8s_info / k8s_exec / helm など関連モジュール、kubectl apply との設計思想の違い、GitOps と共存させる時のピンポン現象などの落とし穴まで網羅。",
         url: "topics/ansible/ansible-k8s-module.html",

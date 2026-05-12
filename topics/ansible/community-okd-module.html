@@ -1,0 +1,1435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>community.okd モジュール完全ガイド — oc コマンドと Playbook の対応表 | Ansible × OpenShift</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161b22;
+    --panel-2: #1c232c;
+    --border: #30363d;
+    --text: #e6edf3;
+    --muted: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --orange: #f0883e;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --yellow: #d29922;
+    --ansible: #ee0000;
+    --ansible-2: #ff4444;
+    --okd: #db212e;
+    --okd-2: #ff5760;
+    --ocp: #ee0000;
+    --link: #79c0ff;
+    --link-hover: #a5d6ff;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.75;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1180px; margin: 0 auto; }
+
+  a {
+    color: var(--link);
+    text-decoration: underline;
+    text-decoration-color: rgba(121, 192, 255, 0.45);
+    text-underline-offset: 3px;
+    transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  }
+  a:hover { color: var(--link-hover); text-decoration-color: var(--link-hover); }
+  a:visited { color: var(--link); }
+  .breadcrumb a, .toc a { text-decoration: none; }
+  .breadcrumb a:hover, .toc a:hover { text-decoration: underline; }
+
+  .breadcrumb {
+    margin-bottom: 20px;
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+
+  header {
+    text-align: center;
+    margin-bottom: 48px;
+    padding: 48px 20px;
+    background: linear-gradient(135deg, #1f2937 0%, #111827 100%);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: "";
+    position: absolute;
+    top: -30%;
+    left: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(circle, rgba(219, 33, 46, 0.2) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header::after {
+    content: "";
+    position: absolute;
+    bottom: -30%;
+    right: -10%;
+    width: 60%;
+    height: 160%;
+    background: radial-gradient(circle, rgba(238, 0, 0, 0.16) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  header .duo {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 18px;
+  }
+  header .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.82rem;
+    letter-spacing: 0.04em;
+  }
+  header .badge.ans { background: rgba(238, 0, 0, 0.15); color: var(--ansible-2); border: 1px solid rgba(238,0,0,0.4); }
+  header .badge.okd { background: rgba(219, 33, 46, 0.18); color: var(--okd-2); border: 1px solid rgba(219,33,46,0.45); }
+  header .duo .plus { color: var(--muted); font-weight: 700; }
+  header h1 {
+    font-size: 2rem;
+    background: linear-gradient(90deg, var(--ansible-2), var(--okd-2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  header p { color: var(--muted); font-size: 1.02rem; position: relative; }
+
+  section { margin-bottom: 48px; }
+  h2 {
+    font-size: 1.55rem;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(180deg, var(--ansible-2), var(--okd-2));
+    border-radius: 2px;
+  }
+  h3 { font-size: 1.18rem; margin: 22px 0 10px; color: var(--accent); }
+  h4 { font-size: 1rem; margin: 14px 0 6px; color: var(--text); }
+  p { margin-bottom: 12px; }
+  ul, ol { margin: 0 0 14px 1.4em; }
+  li { margin-bottom: 6px; }
+
+  code {
+    background: var(--panel-2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: var(--green);
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.9em;
+  }
+  pre {
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    overflow-x: auto;
+    margin: 10px 0 14px;
+    font-family: "SF Mono", Consolas, monospace;
+    font-size: 0.84rem;
+    line-height: 1.6;
+  }
+  pre code {
+    background: transparent;
+    padding: 0;
+    color: var(--text);
+    font-size: inherit;
+  }
+  .cmt { color: var(--muted); }
+  .cmd { color: var(--accent); }
+  .str { color: var(--orange); }
+  .key { color: var(--purple); }
+  .num { color: var(--yellow); }
+  .ans-text { color: var(--ansible-2); font-weight: 600; }
+  .okd-text { color: var(--okd-2); font-weight: 600; }
+  .ok-text { color: var(--green); font-weight: 600; }
+  .warn-text { color: var(--yellow); font-weight: 600; }
+  .ng-text { color: var(--red); font-weight: 600; }
+
+  /* TL;DR */
+  .tldr {
+    background: linear-gradient(135deg, rgba(238,0,0,0.08), rgba(219,33,46,0.08));
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--accent);
+    border-radius: 12px;
+    padding: 22px 26px;
+  }
+  .tldr h3 { color: var(--accent); margin-top: 0; }
+  .tldr p:last-child { margin-bottom: 0; }
+
+  /* TOC */
+  .toc {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 18px 24px;
+    margin-bottom: 36px;
+  }
+  .toc h3 { margin-top: 0; color: var(--text); font-size: 1rem; }
+  .toc ol { margin: 8px 0 0 1.4em; }
+  .toc a { color: var(--link); }
+  .toc li { margin-bottom: 4px; font-size: 0.93rem; }
+
+  /* Command <-> Playbook side-by-side pair */
+  .pair {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    margin: 14px 0 22px;
+    align-items: stretch;
+  }
+  .pair .side {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+  }
+  .pair .side.cli { border-top: 3px solid var(--okd); }
+  .pair .side.pb { border-top: 3px solid var(--ansible); }
+  .pair .side-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .pair .side.cli .side-label { color: var(--okd-2); }
+  .pair .side.pb .side-label { color: var(--ansible-2); }
+  .pair .side-label::before {
+    content: "";
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block;
+  }
+  .pair .side.cli .side-label::before { background: var(--okd); }
+  .pair .side.pb .side-label::before { background: var(--ansible); }
+  .pair .side pre {
+    margin: 0;
+    flex: 1;
+    background: var(--panel-2);
+  }
+  .pair .side .desc {
+    margin-top: 8px;
+    font-size: 0.83rem;
+    color: var(--muted);
+  }
+
+  /* Pair group title (one row title above pair) */
+  .pair-title {
+    margin-top: 22px;
+    margin-bottom: 4px;
+    font-size: 0.95rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .pair-title .num-chip {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 800;
+    font-size: 0.78rem;
+  }
+
+  /* Module reference table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 14px 0 22px;
+  }
+  th, td {
+    padding: 12px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+    vertical-align: top;
+  }
+  th {
+    background: var(--panel-2);
+    color: var(--accent);
+    font-weight: 700;
+    font-size: 0.86rem;
+    letter-spacing: 0.04em;
+  }
+  tr:last-child td { border-bottom: none; }
+  td code, th code { font-size: 0.84rem; }
+  .nowrap { white-space: nowrap; }
+
+  /* Cards */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+    margin: 16px 0 22px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card.ans { border-top: 3px solid var(--ansible); }
+  .card.okd { border-top: 3px solid var(--okd); }
+  .card.warn { border-top: 3px solid var(--yellow); }
+  .card.ok { border-top: 3px solid var(--green); }
+  .card.ng { border-top: 3px solid var(--red); }
+  .card h4 { margin: 0 0 6px; font-size: 0.98rem; }
+  .card p { color: var(--muted); font-size: 0.9rem; margin: 0; }
+
+  /* Callout */
+  .callout {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--yellow);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 14px 0;
+  }
+  .callout.danger { border-left-color: var(--red); }
+  .callout.tip { border-left-color: var(--green); }
+  .callout strong.tag {
+    display: inline-block;
+    color: var(--yellow);
+    font-size: 0.75rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .callout.danger strong.tag { color: var(--red); }
+  .callout.tip strong.tag { color: var(--green); }
+
+  /* Module category groups */
+  .modgroup {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin: 12px 0 16px;
+  }
+  .modgroup h4 {
+    color: var(--okd-2);
+    margin: 0 0 8px;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+  }
+  .modgroup ul { margin: 6px 0 0 1.3em; }
+  .modgroup ul li { font-size: 0.9rem; }
+
+  @media (max-width: 880px) {
+    body { padding: 24px 14px; }
+    header { padding: 32px 18px; }
+    header h1 { font-size: 1.45rem; }
+    h2 { font-size: 1.3rem; }
+    .pair { grid-template-columns: 1fr; }
+    th, td { padding: 9px 10px; font-size: 0.82rem; }
+    pre { font-size: 0.78rem; padding: 12px 14px; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<div class="breadcrumb">
+  <a href="../../index.html">← TOP</a> / Ansible / community.okd モジュール完全ガイド
+</div>
+
+<header>
+  <div class="duo">
+    <span class="badge ans">Ansible</span>
+    <span class="plus">×</span>
+    <span class="badge okd">OpenShift / OKD</span>
+  </div>
+  <h1>community.okd モジュール完全ガイド</h1>
+  <p>oc login / oc get / oc adm 系コマンドを Playbook で書き換える対応表</p>
+</header>
+
+<section>
+  <div class="toc">
+    <h3>目次</h3>
+    <ol>
+      <li><a href="#tldr">結論（TL;DR）</a></li>
+      <li><a href="#overview">community.okd とは — 設計思想と kubernetes.core との関係</a></li>
+      <li><a href="#install">インストールと前提</a></li>
+      <li><a href="#login">oc login ↔ openshift_auth</a></li>
+      <li><a href="#get-pod">oc get pod ↔ k8s_info（Pod）</a></li>
+      <li><a href="#get-node">oc get node ↔ k8s_info（Node）</a></li>
+      <li><a href="#get-other">oc get project / route / dc / bc など</a></li>
+      <li><a href="#adm-cordon">oc adm cordon / drain / uncordon ↔ k8s_drain</a></li>
+      <li><a href="#adm-policy">oc adm policy add-role / add-scc ↔ k8s（RoleBinding / SCC patch）</a></li>
+      <li><a href="#adm-groups">oc adm groups ↔ k8s（Group リソース）</a></li>
+      <li><a href="#adm-prune">oc adm prune ↔ openshift_adm_prune_*</a></li>
+      <li><a href="#adm-top">oc adm top ↔ metrics.k8s.io 経由</a></li>
+      <li><a href="#adm-mustgather">oc adm must-gather / node-logs（モジュール非対応）</a></li>
+      <li><a href="#highlevel">oc new-project / oc expose / oc process</a></li>
+      <li><a href="#fullplay">全部入りサンプル Playbook</a></li>
+      <li><a href="#refs">参考リンク</a></li>
+    </ol>
+  </div>
+</section>
+
+<section id="tldr">
+  <h2>結論（TL;DR）</h2>
+  <div class="tldr">
+    <h3>3 行でまとめると</h3>
+    <p><code>community.okd</code> は <code>kubernetes.core</code> を継承して OpenShift 固有の API（<code>route.openshift.io</code>, <code>build.openshift.io</code>, <code>project.openshift.io</code>, <code>user.openshift.io</code>, <code>security.openshift.io</code> など）を扱えるようにした<span class="okd-text">公式コミュニティコレクション</span>です。</p>
+    <p><strong>「oc 専用モジュールが用意されているのは、CRUD で表現できないコマンドだけ」</strong>です。<code>oc login</code>（OAuth トークン取得）、<code>oc adm prune</code>（複数リソースの一括削除）、<code>oc process</code>（Template 展開）、<code>oc adm migrate-template-instances</code> といった<strong>サブリソース系や複合操作</strong>のみ専用モジュールが存在し、それ以外は <code>kubernetes.core.k8s</code> / <code>k8s_info</code> / <code>k8s_drain</code> をそのまま使います。</p>
+    <p>つまり <code>oc</code> コマンドを Playbook 化するときの判断は <strong>「単純な GET / POST / PATCH / DELETE → k8s 系」「OAuth・サブリソース・複合操作 → openshift_* / okd 系」</strong>の 2 択で迷う必要がありません。</p>
+  </div>
+</section>
+
+<section id="overview">
+  <h2>community.okd とは — 設計思想と kubernetes.core との関係</h2>
+  <p>
+    <code>community.okd</code> は Ansible Galaxy 上の <strong>OpenShift / OKD 用コレクション</strong>で、
+    内部的には <code>kubernetes.core</code> を <span class="ans-text">依存関係として取り込み</span>、
+    OpenShift 固有の処理だけを追加実装しています。よって <code>community.okd.k8s</code> は
+    実体としては <code>kubernetes.core.k8s</code> の薄いラッパーで、引数も挙動もほぼ同じです。
+  </p>
+
+  <div class="grid">
+    <div class="card okd">
+      <h4>提供元</h4>
+      <p>Red Hat 主導の <a href="https://github.com/openshift/community.okd" target="_blank" rel="noopener">openshift/community.okd</a> リポジトリ。OpenShift 4.x / OKD 4.x をターゲット。</p>
+    </div>
+    <div class="card ans">
+      <h4>依存</h4>
+      <p>制御ノードに <code>kubernetes.core</code> と Python の <code>kubernetes</code> / <code>openshift</code> / <code>jsonpatch</code> ライブラリ。</p>
+    </div>
+    <div class="card okd">
+      <h4>通信方式</h4>
+      <p><code>oc</code> バイナリは使わず、API Server の REST を直接呼ぶ。<strong>aggregated API</strong> 経由で K8s リソースと OpenShift リソースを区別なく扱える。</p>
+    </div>
+    <div class="card ok">
+      <h4>使い分けの鉄則</h4>
+      <p>CRUD で表現できる操作 → <code>kubernetes.core</code>。OAuth / 複合 / サブリソース → <code>community.okd</code>。</p>
+    </div>
+  </div>
+
+  <h3>提供される OpenShift 専用モジュール（抜粋）</h3>
+  <div class="modgroup">
+    <h4>認証 / 認可</h4>
+    <ul>
+      <li><code>community.okd.openshift_auth</code> — <strong>oc login 相当</strong>。OAuth Implicit Grant でトークンを取得し、後続タスクで <code>api_key</code> として再利用。</li>
+    </ul>
+  </div>
+  <div class="modgroup">
+    <h4>ネットワーク</h4>
+    <ul>
+      <li><code>community.okd.openshift_route</code> — <strong>oc expose 相当</strong>。Service を選んで Route を作成し、TLS Termination や Wildcard Policy も引数で指定。</li>
+    </ul>
+  </div>
+  <div class="modgroup">
+    <h4>テンプレート</h4>
+    <ul>
+      <li><code>community.okd.openshift_process</code> — <strong>oc process 相当</strong>。Template の Parameter を埋め込んで展開、そのまま適用も可能。</li>
+    </ul>
+  </div>
+  <div class="modgroup">
+    <h4>イメージ</h4>
+    <ul>
+      <li><code>community.okd.openshift_import_image</code> — <strong>oc import-image 相当</strong>。外部レジストリから ImageStream へ即時インポート。</li>
+    </ul>
+  </div>
+  <div class="modgroup">
+    <h4>oc adm 系（管理コマンド）</h4>
+    <ul>
+      <li><code>community.okd.openshift_adm_prune_deployments</code> — 古い ReplicationController / ReplicaSet を一括削除。</li>
+      <li><code>community.okd.openshift_adm_prune_builds</code> — 古い Build を一括削除。</li>
+      <li><code>community.okd.openshift_adm_prune_images</code> — 未参照の Image / ImageStreamTag を削除。</li>
+      <li><code>community.okd.openshift_adm_prune_auth</code> — 削除されたユーザー / グループへの参照を RoleBinding / SCC から除去。</li>
+      <li><code>community.okd.openshift_adm_migrate_template_instances</code> — 旧 Template API の参照を新 GVK に更新。</li>
+      <li><code>community.okd.openshift_adm_groups_sync</code> — LDAP との Group 同期。</li>
+    </ul>
+  </div>
+  <div class="modgroup">
+    <h4>インベントリ / ルックアップ</h4>
+    <ul>
+      <li><code>community.okd.openshift</code>（インベントリプラグイン）— Pod を Ansible のインベントリとして自動列挙。</li>
+    </ul>
+  </div>
+</section>
+
+<section id="install">
+  <h2>インストールと前提</h2>
+  <pre><code><span class="cmt"># コレクションのインストール</span>
+<span class="cmd">ansible-galaxy</span> collection install community.okd
+
+<span class="cmt"># Python 依存（制御ノードで実行する Python に対して）</span>
+<span class="cmd">pip</span> install kubernetes openshift PyYAML jsonpatch
+
+<span class="cmt"># 動作確認</span>
+<span class="cmd">ansible-doc</span> community.okd.openshift_auth | head -20</code></pre>
+
+  <div class="callout tip">
+    <strong class="tag">推奨セットアップ</strong>
+    <p style="margin:0">Execution Environment（ansible-builder）を使うなら、<code>execution-environment.yml</code> の <code>collections</code> に <code>kubernetes.core</code> と <code>community.okd</code> を、<code>python</code> 依存に <code>kubernetes</code> / <code>openshift</code> / <code>jsonpatch</code> を追加するだけで再現可能な実行環境になります。</p>
+  </div>
+</section>
+
+<section id="login">
+  <h2>oc login ↔ openshift_auth</h2>
+  <p>
+    <code>oc login</code> は OpenShift の Internal OAuth Server に対する <strong>Implicit Grant</strong> で
+    Bearer Token を取得し、それを kubeconfig に保存します。<code>community.okd.openshift_auth</code> は
+    同じフローを Python で再現するモジュールで、取得したトークンを以降のタスクに <code>api_key</code>
+    として渡せます。
+  </p>
+
+  <div class="pair-title"><span class="num-chip">1</span>ユーザー名 / パスワードでログイン</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> login <span class="str">https://api.cluster.example.com:6443</span> \
+   --username=<span class="str">alice</span> \
+   --password=<span class="str">'********'</span> \
+   --certificate-authority=<span class="str">/etc/ssl/ca.crt</span></code></pre>
+      <div class="desc">成功すると <code>~/.kube/config</code> に context と token が書き込まれ、以降の <code>oc</code> 実行で再利用される。</div>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Log in to OpenShift</span>
+  <span class="key">community.okd.openshift_auth</span>:
+    <span class="key">host</span>: <span class="str">https://api.cluster.example.com:6443</span>
+    <span class="key">username</span>: <span class="str">alice</span>
+    <span class="key">password</span>: <span class="str">"{{ ocp_password }}"</span>
+    <span class="key">ca_cert</span>: <span class="str">/etc/ssl/ca.crt</span>
+  <span class="key">register</span>: <span class="str">ocp</span>
+  <span class="key">no_log</span>: <span class="num">true</span></code></pre>
+      <div class="desc">レスポンスは <code>ocp.openshift_auth.api_key</code> に格納される。以降のタスクで <code>api_key: "{{ ocp.openshift_auth.api_key }}"</code> を渡すだけ。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>既存トークンでログイン</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> login <span class="str">https://api.cluster.example.com:6443</span> \
+   --token=<span class="str">sha256~xxxxxxxxxxxxxxxxxx</span></code></pre>
+      <div class="desc">Service Account のトークンや、すでに取得済みのトークンを直接指定するパターン。</div>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code><span class="cmt"># openshift_auth を呼ばず、直接 api_key を渡せばよい</span>
+- <span class="key">name</span>: <span class="str">Use existing token</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">host</span>: <span class="str">https://api.cluster.example.com:6443</span>
+    <span class="key">api_key</span>: <span class="str">"{{ ocp_token }}"</span>
+    <span class="key">ca_cert</span>: <span class="str">/etc/ssl/ca.crt</span>
+    <span class="key">kind</span>: <span class="str">Project</span></code></pre>
+      <div class="desc"><code>K8S_AUTH_API_KEY</code> 環境変数で渡すこともできる。CI/CD では Vault や Secret に保存して注入。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">3</span>ログアウト（トークン失効）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> logout</code></pre>
+      <div class="desc">取得した OAuth Access Token を <code>/oauth/tokens</code> エンドポイントで削除し、kubeconfig からも消す。</div>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Revoke OpenShift token</span>
+  <span class="key">community.okd.openshift_auth</span>:
+    <span class="key">state</span>: <span class="str">absent</span>
+    <span class="key">host</span>: <span class="str">"{{ ocp.openshift_auth.host }}"</span>
+    <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+    <span class="key">ca_cert</span>: <span class="str">/etc/ssl/ca.crt</span></code></pre>
+      <div class="desc">本番運用では Playbook 末尾の <code>always</code> 句に置くと、失敗時も確実に失効できる。</div>
+    </div>
+  </div>
+</section>
+
+<section id="get-pod">
+  <h2>oc get pod ↔ k8s_info（Pod）</h2>
+  <p>
+    リソースの参照は OpenShift 固有のものを含めて <strong>すべて <code>kubernetes.core.k8s_info</code></strong> で取れます。
+    <code>oc get</code> のフィルタ（label / field / namespace）はそのまま引数に対応します。
+  </p>
+
+  <div class="pair-title"><span class="num-chip">1</span>特定 namespace の Pod 一覧</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> get pod -n <span class="str">myproject</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">List pods in myproject</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">api_version</span>: <span class="str">v1</span>
+    <span class="key">kind</span>: <span class="str">Pod</span>
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+    <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+  <span class="key">register</span>: <span class="str">pods</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>ラベルセレクタで絞り込み</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> get pod -n <span class="str">myproject</span> \
+   -l <span class="str">app=web,tier=frontend</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">List frontend pods</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">kind</span>: <span class="str">Pod</span>
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+    <span class="key">label_selectors</span>:
+      - <span class="str">app=web</span>
+      - <span class="str">tier=frontend</span>
+  <span class="key">register</span>: <span class="str">frontend_pods</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">3</span>フィールドセレクタで絞り込み（Running の Pod のみ）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> get pod -n <span class="str">myproject</span> \
+   --field-selector=<span class="str">status.phase=Running</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">List running pods</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">kind</span>: <span class="str">Pod</span>
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+    <span class="key">field_selectors</span>:
+      - <span class="str">status.phase=Running</span>
+  <span class="key">register</span>: <span class="str">running_pods</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">4</span>全 namespace の Pod 一覧</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> get pod --all-namespaces</code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">List pods cluster-wide</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">kind</span>: <span class="str">Pod</span>
+    <span class="cmt"># namespace を省略 = 全 namespace</span>
+  <span class="key">register</span>: <span class="str">all_pods</span>
+
+- <span class="key">debug</span>:
+    <span class="key">msg</span>: <span class="str">"Total pods: {{ all_pods.resources | length }}"</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">5</span>Pod ログを取得</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> logs <span class="str">web-7d8f-xxxxx</span> \
+   -n <span class="str">myproject</span> \
+   --tail=<span class="num">100</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Fetch pod logs</span>
+  <span class="key">kubernetes.core.k8s_log</span>:
+    <span class="key">name</span>: <span class="str">web-7d8f-xxxxx</span>
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+    <span class="key">tail_lines</span>: <span class="num">100</span>
+  <span class="key">register</span>: <span class="str">logs</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="get-node">
+  <h2>oc get node ↔ k8s_info（Node）</h2>
+  <p>
+    Node はクラスタスコープのリソースなので、<code>namespace</code> 引数は不要です。
+    <code>oc adm top node</code> 相当のメトリクスは <code>metrics.k8s.io</code> API を見れば取れます（<a href="#adm-top">後述</a>）。
+  </p>
+
+  <div class="pair-title"><span class="num-chip">1</span>全ノード一覧</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> get node</code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">List all nodes</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">api_version</span>: <span class="str">v1</span>
+    <span class="key">kind</span>: <span class="str">Node</span>
+  <span class="key">register</span>: <span class="str">nodes</span>
+
+- <span class="key">debug</span>:
+    <span class="key">msg</span>: <span class="str">"{{ item.metadata.name }} : {{ item.status.conditions
+            | selectattr('type', 'eq', 'Ready')
+            | map(attribute='status') | first }}"</span>
+  <span class="key">loop</span>: <span class="str">"{{ nodes.resources }}"</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>master/worker ロール別に取得</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> get node \
+   -l <span class="str">node-role.kubernetes.io/worker=</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">List worker nodes</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">kind</span>: <span class="str">Node</span>
+    <span class="key">label_selectors</span>:
+      - <span class="str">node-role.kubernetes.io/worker</span>
+  <span class="key">register</span>: <span class="str">workers</span></code></pre>
+      <div class="desc">値が空のラベルは「キーの存在」だけを判定する。Ansible 側も値なしで OK。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">3</span>NotReady な Node を抽出</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> get node \
+   -o jsonpath=<span class="str">'{range .items[?(@.status.conditions[?(@.type=="Ready")].status!="True")]}{.metadata.name}{"\n"}{end}'</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Find NotReady nodes</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">kind</span>: <span class="str">Node</span>
+  <span class="key">register</span>: <span class="str">all_nodes</span>
+
+- <span class="key">set_fact</span>:
+    <span class="key">notready</span>: <span class="str">"{{ all_nodes.resources
+              | rejectattr('status.conditions', 'search', 'Ready.*True')
+              | map(attribute='metadata.name') | list }}"</span>
+
+- <span class="key">fail</span>:
+    <span class="key">msg</span>: <span class="str">"NotReady nodes: {{ notready }}"</span>
+  <span class="key">when</span>: <span class="str">notready | length &gt; 0</span></code></pre>
+      <div class="desc">jsonpath を書くより Jinja2 フィルタで書いたほうがロール・通知に組み込みやすい。</div>
+    </div>
+  </div>
+</section>
+
+<section id="get-other">
+  <h2>oc get project / route / dc / bc など</h2>
+  <p>OpenShift 固有リソースも <code>api_version</code> を指定すれば <code>k8s_info</code> で取得できます。</p>
+
+  <table>
+    <thead>
+      <tr><th class="nowrap">oc コマンド</th><th class="nowrap">api_version</th><th class="nowrap">kind</th><th>用途</th></tr>
+    </thead>
+    <tbody>
+      <tr><td class="nowrap"><code>oc get project</code></td><td class="nowrap"><code>project.openshift.io/v1</code></td><td class="nowrap"><code>Project</code></td><td>ユーザー視点のプロジェクト一覧。</td></tr>
+      <tr><td class="nowrap"><code>oc get route</code></td><td class="nowrap"><code>route.openshift.io/v1</code></td><td class="nowrap"><code>Route</code></td><td>外部公開 URL の一覧。</td></tr>
+      <tr><td class="nowrap"><code>oc get dc</code></td><td class="nowrap"><code>apps.openshift.io/v1</code></td><td class="nowrap"><code>DeploymentConfig</code></td><td>レガシー。新規は Deployment 推奨。</td></tr>
+      <tr><td class="nowrap"><code>oc get bc</code></td><td class="nowrap"><code>build.openshift.io/v1</code></td><td class="nowrap"><code>BuildConfig</code></td><td>S2I / Docker ビルド定義。</td></tr>
+      <tr><td class="nowrap"><code>oc get is</code></td><td class="nowrap"><code>image.openshift.io/v1</code></td><td class="nowrap"><code>ImageStream</code></td><td>イメージタグの参照管理。</td></tr>
+      <tr><td class="nowrap"><code>oc get user</code></td><td class="nowrap"><code>user.openshift.io/v1</code></td><td class="nowrap"><code>User</code></td><td>OpenShift User オブジェクト。</td></tr>
+      <tr><td class="nowrap"><code>oc get group</code></td><td class="nowrap"><code>user.openshift.io/v1</code></td><td class="nowrap"><code>Group</code></td><td>Group オブジェクト。</td></tr>
+      <tr><td class="nowrap"><code>oc get scc</code></td><td class="nowrap"><code>security.openshift.io/v1</code></td><td class="nowrap"><code>SecurityContextConstraints</code></td><td>SCC 一覧。</td></tr>
+      <tr><td class="nowrap"><code>oc get clusterversion</code></td><td class="nowrap"><code>config.openshift.io/v1</code></td><td class="nowrap"><code>ClusterVersion</code></td><td>クラスタのバージョン情報。</td></tr>
+    </tbody>
+  </table>
+
+  <div class="pair-title"><span class="num-chip">例</span>Route 一覧と外部 URL の抽出</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> get route -n <span class="str">myproject</span> \
+   -o jsonpath=<span class="str">'{range .items[*]}{.spec.host}{"\n"}{end}'</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">List external URLs</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">api_version</span>: <span class="str">route.openshift.io/v1</span>
+    <span class="key">kind</span>: <span class="str">Route</span>
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+  <span class="key">register</span>: <span class="str">routes</span>
+
+- <span class="key">debug</span>:
+    <span class="key">msg</span>: <span class="str">"{{ routes.resources | map(attribute='spec.host') | list }}"</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="adm-cordon">
+  <h2>oc adm cordon / drain / uncordon ↔ k8s_drain</h2>
+  <p>
+    ノードの保守オペレーションは <code>kubernetes.core.k8s_drain</code> 一本で <code>cordon</code> / <code>drain</code> / <code>uncordon</code> を切り替えます。
+    <strong>引数 <code>state</code> がそのまま 3 つの操作に対応</strong>します。
+  </p>
+
+  <div class="pair-title"><span class="num-chip">1</span>cordon（新規スケジュールを停止）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm cordon <span class="str">worker-1.example.com</span></code></pre>
+      <div class="desc">Pod 退避はせず、新しい Pod の割り当てだけを止める。</div>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Cordon worker-1</span>
+  <span class="key">kubernetes.core.k8s_drain</span>:
+    <span class="key">name</span>: <span class="str">worker-1.example.com</span>
+    <span class="key">state</span>: <span class="str">cordon</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>drain（Pod を退避してメンテへ）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm drain <span class="str">worker-1.example.com</span> \
+   --ignore-daemonsets \
+   --delete-emptydir-data \
+   --grace-period=<span class="num">600</span> \
+   --force</code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Drain worker-1</span>
+  <span class="key">kubernetes.core.k8s_drain</span>:
+    <span class="key">name</span>: <span class="str">worker-1.example.com</span>
+    <span class="key">state</span>: <span class="str">drain</span>
+    <span class="key">delete_options</span>:
+      <span class="key">ignore_daemonsets</span>: <span class="num">true</span>
+      <span class="key">delete_emptydir_data</span>: <span class="num">true</span>
+      <span class="key">terminate_grace_period</span>: <span class="num">600</span>
+      <span class="key">force</span>: <span class="num">true</span></code></pre>
+      <div class="desc">PDB を尊重して順次 evict。タイムアウトは <code>wait_timeout</code> で上書き可能。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">3</span>uncordon（メンテ後にスケジュール再開）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm uncordon <span class="str">worker-1.example.com</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Uncordon worker-1</span>
+  <span class="key">kubernetes.core.k8s_drain</span>:
+    <span class="key">name</span>: <span class="str">worker-1.example.com</span>
+    <span class="key">state</span>: <span class="str">uncordon</span></code></pre>
+    </div>
+  </div>
+
+  <div class="callout tip">
+    <strong class="tag">運用 Tips</strong>
+    <p style="margin:0">ローリングメンテで Worker を順に再起動するなら、<code>kubernetes.core.k8s_info</code> で <code>node-role.kubernetes.io/worker</code> ラベルを持つ Node を列挙し、<code>loop</code> で 1 台ずつ <strong>cordon → drain → 再起動（OS 側）→ uncordon</strong> を回すと安全です。</p>
+  </div>
+</section>
+
+<section id="adm-policy">
+  <h2>oc adm policy add-role / add-scc ↔ k8s（RoleBinding / SCC patch）</h2>
+  <p>
+    <code>oc adm policy</code> 系は専用モジュールがありません。<strong>「Role 付与は RoleBinding を作る」「SCC 付与は SCC を patch する」</strong>
+    と理解すれば <code>kubernetes.core.k8s</code> / <code>k8s_json_patch</code> で完結します。
+  </p>
+
+  <div class="pair-title"><span class="num-chip">1</span>ユーザーに ClusterRole を namespace スコープで付与</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm policy add-role-to-user \
+   <span class="str">admin</span> <span class="str">alice</span> \
+   -n <span class="str">myproject</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Grant admin role to alice on myproject</span>
+  <span class="key">kubernetes.core.k8s</span>:
+    <span class="key">state</span>: <span class="str">present</span>
+    <span class="key">definition</span>:
+      <span class="key">apiVersion</span>: <span class="str">rbac.authorization.k8s.io/v1</span>
+      <span class="key">kind</span>: <span class="str">RoleBinding</span>
+      <span class="key">metadata</span>:
+        <span class="key">name</span>: <span class="str">admin-alice</span>
+        <span class="key">namespace</span>: <span class="str">myproject</span>
+      <span class="key">subjects</span>:
+        - <span class="key">kind</span>: <span class="str">User</span>
+          <span class="key">name</span>: <span class="str">alice</span>
+          <span class="key">apiGroup</span>: <span class="str">rbac.authorization.k8s.io</span>
+      <span class="key">roleRef</span>:
+        <span class="key">kind</span>: <span class="str">ClusterRole</span>
+        <span class="key">name</span>: <span class="str">admin</span>
+        <span class="key">apiGroup</span>: <span class="str">rbac.authorization.k8s.io</span></code></pre>
+      <div class="desc">命名は冪等のため固定化（<code>{role}-{user}</code> が安全）。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>ServiceAccount を SCC に追加</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm policy add-scc-to-user \
+   <span class="str">privileged</span> \
+   -z <span class="str">default</span> \
+   -n <span class="str">myproject</span></code></pre>
+      <div class="desc"><code>-z</code> は ServiceAccount 指定の短縮形。実体は SCC の <code>users</code> 配列に <code>system:serviceaccount:myproject:default</code> を追記。</div>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Add SA to privileged SCC</span>
+  <span class="key">kubernetes.core.k8s_json_patch</span>:
+    <span class="key">api_version</span>: <span class="str">security.openshift.io/v1</span>
+    <span class="key">kind</span>: <span class="str">SecurityContextConstraints</span>
+    <span class="key">name</span>: <span class="str">privileged</span>
+    <span class="key">patch</span>:
+      - <span class="key">op</span>: <span class="str">add</span>
+        <span class="key">path</span>: <span class="str">/users/-</span>
+        <span class="key">value</span>: <span class="str">system:serviceaccount:myproject:default</span></code></pre>
+      <div class="desc">RFC 6902 JSON Patch で配列末尾追加。重複追加を避けたいなら事前に <code>k8s_info</code> で確認 → <code>when</code> で分岐。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">3</span>クラスタ全体に ClusterRoleBinding を付与</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm policy add-cluster-role-to-user \
+   <span class="str">cluster-admin</span> <span class="str">alice</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Promote alice to cluster-admin</span>
+  <span class="key">kubernetes.core.k8s</span>:
+    <span class="key">state</span>: <span class="str">present</span>
+    <span class="key">definition</span>:
+      <span class="key">apiVersion</span>: <span class="str">rbac.authorization.k8s.io/v1</span>
+      <span class="key">kind</span>: <span class="str">ClusterRoleBinding</span>
+      <span class="key">metadata</span>:
+        <span class="key">name</span>: <span class="str">cluster-admin-alice</span>
+      <span class="key">subjects</span>:
+        - <span class="key">kind</span>: <span class="str">User</span>
+          <span class="key">name</span>: <span class="str">alice</span>
+          <span class="key">apiGroup</span>: <span class="str">rbac.authorization.k8s.io</span>
+      <span class="key">roleRef</span>:
+        <span class="key">kind</span>: <span class="str">ClusterRole</span>
+        <span class="key">name</span>: <span class="str">cluster-admin</span>
+        <span class="key">apiGroup</span>: <span class="str">rbac.authorization.k8s.io</span></code></pre>
+    </div>
+  </div>
+
+  <div class="callout danger">
+    <strong class="tag">注意</strong>
+    <p style="margin:0">SCC を <code>k8s</code> モジュールで <code>state: present</code> のまま渡すと <strong>users 配列が丸ごと上書き</strong>される事故が起きます。「既存ユーザーを残したまま追加」したい場合は必ず <code>k8s_json_patch</code>（差分追加）か Server-Side Apply の所有権分離（<code>apply: true</code>）を使ってください。</p>
+  </div>
+</section>
+
+<section id="adm-groups">
+  <h2>oc adm groups ↔ k8s（Group リソース）</h2>
+  <p>OpenShift の <code>Group</code> は <code>user.openshift.io/v1</code> の CRUD 可能なリソースなので、普通に <code>k8s</code> モジュールで操作できます。</p>
+
+  <div class="pair-title"><span class="num-chip">1</span>新規 Group の作成</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm groups new <span class="str">platform-admins</span> \
+   <span class="str">alice</span> <span class="str">bob</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Create platform-admins group</span>
+  <span class="key">kubernetes.core.k8s</span>:
+    <span class="key">state</span>: <span class="str">present</span>
+    <span class="key">definition</span>:
+      <span class="key">apiVersion</span>: <span class="str">user.openshift.io/v1</span>
+      <span class="key">kind</span>: <span class="str">Group</span>
+      <span class="key">metadata</span>:
+        <span class="key">name</span>: <span class="str">platform-admins</span>
+      <span class="key">users</span>:
+        - <span class="str">alice</span>
+        - <span class="str">bob</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>Group にユーザー追加</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm groups add-users \
+   <span class="str">platform-admins</span> <span class="str">carol</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Add carol to platform-admins</span>
+  <span class="key">kubernetes.core.k8s_json_patch</span>:
+    <span class="key">api_version</span>: <span class="str">user.openshift.io/v1</span>
+    <span class="key">kind</span>: <span class="str">Group</span>
+    <span class="key">name</span>: <span class="str">platform-admins</span>
+    <span class="key">patch</span>:
+      - <span class="key">op</span>: <span class="str">add</span>
+        <span class="key">path</span>: <span class="str">/users/-</span>
+        <span class="key">value</span>: <span class="str">carol</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">3</span>LDAP からの自動同期</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm groups sync \
+   --sync-config=<span class="str">sync.yaml</span> \
+   --confirm</code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Sync groups from LDAP</span>
+  <span class="key">community.okd.openshift_adm_groups_sync</span>:
+    <span class="key">config_file</span>: <span class="str">/etc/openshift/sync.yaml</span>
+    <span class="key">state</span>: <span class="str">present</span>     <span class="cmt"># 実反映（CLI の --confirm 相当）</span></code></pre>
+      <div class="desc"><code>state: info</code> ならドライラン相当（CLI の <code>--confirm</code> なし）。</div>
+    </div>
+  </div>
+</section>
+
+<section id="adm-prune">
+  <h2>oc adm prune ↔ openshift_adm_prune_*</h2>
+  <p>
+    <code>prune</code> 系は <strong>「複数リソースを条件付きで一括削除する」複合操作</strong>のため、専用モジュールが用意されています。
+    内部で <code>k8s_info</code> 相当の列挙 → 条件フィルタ → 削除をまとめて実行します。
+  </p>
+
+  <div class="pair-title"><span class="num-chip">1</span>古い Deployment / RC のクリーンアップ</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm prune deployments \
+   --keep-younger-than=<span class="str">60m</span> \
+   --keep-complete=<span class="num">5</span> \
+   --keep-failed=<span class="num">1</span> \
+   -n <span class="str">myproject</span> \
+   --confirm</code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Prune old deployments</span>
+  <span class="key">community.okd.openshift_adm_prune_deployments</span>:
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+    <span class="key">keep_younger_than</span>: <span class="num">60</span>      <span class="cmt"># 分単位</span>
+    <span class="key">orphans</span>: <span class="num">true</span>             <span class="cmt"># 親のいない RC も対象</span></code></pre>
+      <div class="desc">モジュールは常に <code>--confirm</code> 相当で実行。プレビューしたい場合は <code>check_mode: true</code>。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>古い Build のクリーンアップ</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm prune builds \
+   --keep-younger-than=<span class="str">120m</span> \
+   --keep-complete=<span class="num">3</span> \
+   --orphans \
+   --confirm</code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Prune old builds cluster-wide</span>
+  <span class="key">community.okd.openshift_adm_prune_builds</span>:
+    <span class="key">keep_younger_than</span>: <span class="num">120</span>
+    <span class="key">orphans</span>: <span class="num">true</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">3</span>未参照イメージのクリーンアップ</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm prune images \
+   --keep-younger-than=<span class="str">60m</span> \
+   --keep-tag-revisions=<span class="num">3</span> \
+   --confirm \
+   --registry-url=<span class="str">image-registry.openshift-image-registry.svc:5000</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Prune unused images</span>
+  <span class="key">community.okd.openshift_adm_prune_images</span>:
+    <span class="key">keep_younger_than</span>: <span class="num">60</span>
+    <span class="key">registry_url</span>: <span class="str">image-registry.openshift-image-registry.svc:5000</span>
+    <span class="key">ignore_invalid_refs</span>: <span class="num">true</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">4</span>削除されたユーザー / グループへの参照を除去</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm prune auth users <span class="str">deleted-user</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Strip deleted user from RoleBindings / SCC</span>
+  <span class="key">community.okd.openshift_adm_prune_auth</span>:
+    <span class="key">resource</span>: <span class="str">users</span>
+    <span class="key">name</span>: <span class="str">deleted-user</span></code></pre>
+      <div class="desc">RoleBinding / ClusterRoleBinding / SCC の <code>subjects</code> / <code>users</code> から自動除去。LDAP 同期から外れたユーザーの後始末に便利。</div>
+    </div>
+  </div>
+</section>
+
+<section id="adm-top">
+  <h2>oc adm top ↔ metrics.k8s.io 経由</h2>
+  <p>
+    <code>oc adm top node</code> / <code>oc adm top pod</code> は <strong>Metrics Server の API（<code>metrics.k8s.io/v1beta1</code>）</strong>を叩いているだけです。
+    モジュールは存在しませんが、<code>k8s_info</code> で同じ API を叩けば取得できます。
+  </p>
+
+  <div class="pair-title"><span class="num-chip">1</span>ノードの CPU / メモリ消費</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm top node</code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Fetch node metrics</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">api_version</span>: <span class="str">metrics.k8s.io/v1beta1</span>
+    <span class="key">kind</span>: <span class="str">NodeMetrics</span>
+  <span class="key">register</span>: <span class="str">nm</span>
+
+- <span class="key">debug</span>:
+    <span class="key">msg</span>: <span class="str">"{{ item.metadata.name }}: cpu={{ item.usage.cpu }}, mem={{ item.usage.memory }}"</span>
+  <span class="key">loop</span>: <span class="str">"{{ nm.resources }}"</span></code></pre>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>Pod の CPU / メモリ消費</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm top pod -n <span class="str">myproject</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Fetch pod metrics</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">api_version</span>: <span class="str">metrics.k8s.io/v1beta1</span>
+    <span class="key">kind</span>: <span class="str">PodMetrics</span>
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+  <span class="key">register</span>: <span class="str">pm</span></code></pre>
+      <div class="desc">クラスタに Metrics Server が無いと取得できない点は <code>oc adm top</code> と同じ。</div>
+    </div>
+  </div>
+</section>
+
+<section id="adm-mustgather">
+  <h2>oc adm must-gather / node-logs（モジュール非対応）</h2>
+  <p>
+    これらはローカルファイルシステムへの<strong>大規模ファイル収集</strong>がメインで、API として表現しにくいため、
+    <code>community.okd</code> も <code>kubernetes.core</code> も専用モジュールを<strong>提供していません</strong>。
+    現実解は「<code>oc</code> バイナリを <code>command</code> モジュール経由で呼ぶ」ことです。
+  </p>
+
+  <div class="pair-title"><span class="num-chip">1</span>must-gather でクラスタ診断を取得</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm must-gather \
+   --dest-dir=<span class="str">/tmp/mg</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Run must-gather</span>
+  <span class="key">ansible.builtin.command</span>:
+    <span class="key">cmd</span>: <span class="str">oc adm must-gather --dest-dir={{ mg_dir }}</span>
+    <span class="key">creates</span>: <span class="str">"{{ mg_dir }}/version"</span>
+  <span class="key">environment</span>:
+    <span class="key">KUBECONFIG</span>: <span class="str">"{{ kubeconfig_path }}"</span>
+  <span class="key">register</span>: <span class="str">mg</span></code></pre>
+      <div class="desc">前提として制御ノードに <code>oc</code> バイナリが必要。<code>creates</code> で簡易な冪等性を確保。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>node-logs（journald / kubelet ログ）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> adm node-logs <span class="str">worker-1</span> \
+   --unit=<span class="str">kubelet</span> \
+   --since=<span class="str">"2 hours ago"</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Fetch kubelet logs</span>
+  <span class="key">ansible.builtin.command</span>:
+    <span class="key">cmd</span>: <span class="str">&gt;-
+      oc adm node-logs {{ node }}
+      --unit=kubelet
+      --since="2 hours ago"</span>
+  <span class="key">register</span>: <span class="str">kubelet_log</span>
+  <span class="key">changed_when</span>: <span class="num">false</span></code></pre>
+      <div class="desc">純粋な「読み取り」なので <code>changed_when: false</code> を付けて意図を明示。</div>
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong class="tag">割り切り</strong>
+    <p style="margin:0"><code>oc adm must-gather</code> は内部で Job を立ち上げ → 完了待ち → <code>kubectl cp</code> でファイル回収という<strong>マルチステップ複合動作</strong>です。これを純 API で書くのは現実的でないため、<code>command</code> モジュールで <code>oc</code> 自体を呼ぶのが定石です。逆に言えば、ここだけは「制御ノードに <code>oc</code> をインストールしておく」運用判断が必要です。</p>
+  </div>
+</section>
+
+<section id="highlevel">
+  <h2>oc new-project / oc expose / oc process</h2>
+  <p>高レベルコマンドのうち、頻出するものは <code>community.okd</code> に専用モジュールがあります。</p>
+
+  <div class="pair-title"><span class="num-chip">1</span>oc new-project（ProjectRequest の特殊扱い）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> new-project <span class="str">myproject</span> \
+   --display-name=<span class="str">"My Project"</span> \
+   --description=<span class="str">"team A workload"</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Create project</span>
+  <span class="key">kubernetes.core.k8s</span>:
+    <span class="key">state</span>: <span class="str">present</span>
+    <span class="key">definition</span>:
+      <span class="key">apiVersion</span>: <span class="str">project.openshift.io/v1</span>
+      <span class="key">kind</span>: <span class="str">ProjectRequest</span>
+      <span class="key">metadata</span>:
+        <span class="key">name</span>: <span class="str">myproject</span>
+      <span class="key">displayName</span>: <span class="str">"My Project"</span>
+      <span class="key">description</span>: <span class="str">"team A workload"</span></code></pre>
+      <div class="desc"><strong><code>Project</code> ではなく <code>ProjectRequest</code></strong> を POST する点に注意。OpenShift が自動で関連 RoleBinding / SCC を生成。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">2</span>oc expose svc（Route の作成）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> expose svc/<span class="str">web</span> \
+   --hostname=<span class="str">web.apps.example.com</span> \
+   -n <span class="str">myproject</span></code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Expose web service</span>
+  <span class="key">community.okd.openshift_route</span>:
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+    <span class="key">service</span>: <span class="str">web</span>
+    <span class="key">hostname</span>: <span class="str">web.apps.example.com</span>
+    <span class="key">tls</span>:
+      <span class="key">termination</span>: <span class="str">edge</span>
+      <span class="key">insecure_policy</span>: <span class="str">Redirect</span></code></pre>
+      <div class="desc">TLS Termination や Wildcard Policy も引数で指定できる。</div>
+    </div>
+  </div>
+
+  <div class="pair-title"><span class="num-chip">3</span>oc process（Template 展開）</div>
+  <div class="pair">
+    <div class="side cli">
+      <div class="side-label">oc CLI</div>
+      <pre><code><span class="cmd">oc</span> process -f <span class="str">template.yaml</span> \
+   -p <span class="str">NAMESPACE=myproject</span> \
+   -p <span class="str">IMAGE=nginx:1.27</span> \
+   | <span class="cmd">oc</span> apply -f -</code></pre>
+    </div>
+    <div class="side pb">
+      <div class="side-label">Ansible Playbook</div>
+      <pre><code>- <span class="key">name</span>: <span class="str">Process and apply template</span>
+  <span class="key">community.okd.openshift_process</span>:
+    <span class="key">src</span>: <span class="str">files/template.yaml</span>
+    <span class="key">namespace</span>: <span class="str">myproject</span>
+    <span class="key">parameters</span>:
+      <span class="key">NAMESPACE</span>: <span class="str">myproject</span>
+      <span class="key">IMAGE</span>: <span class="str">nginx:1.27</span>
+    <span class="key">state</span>: <span class="str">present</span>      <span class="cmt"># 展開後そのまま適用</span></code></pre>
+      <div class="desc"><code>state: rendered</code> にすると展開結果だけ返して適用しない（ドライラン代わり）。</div>
+    </div>
+  </div>
+</section>
+
+<section id="fullplay">
+  <h2>全部入りサンプル Playbook</h2>
+  <p>ログイン → 状態確認 → ワーカーローリングメンテ → クリーンアップ → ログアウトの典型シナリオ。</p>
+
+  <pre><code>---
+- <span class="key">name</span>: <span class="str">OpenShift maintenance workflow</span>
+  <span class="key">hosts</span>: <span class="str">localhost</span>
+  <span class="key">connection</span>: <span class="str">local</span>
+  <span class="key">gather_facts</span>: <span class="num">false</span>
+  <span class="key">vars</span>:
+    <span class="key">ocp_host</span>: <span class="str">https://api.cluster.example.com:6443</span>
+    <span class="key">ocp_ca</span>:   <span class="str">/etc/ssl/ca.crt</span>
+    <span class="key">ocp_user</span>: <span class="str">alice</span>
+
+  <span class="key">tasks</span>:
+    <span class="cmt"># --- 1. ログイン ---</span>
+    - <span class="key">name</span>: <span class="str">Login (oc login 相当)</span>
+      <span class="key">community.okd.openshift_auth</span>:
+        <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+        <span class="key">username</span>: <span class="str">"{{ ocp_user }}"</span>
+        <span class="key">password</span>: <span class="str">"{{ ocp_password }}"</span>
+        <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+      <span class="key">register</span>: <span class="str">ocp</span>
+      <span class="key">no_log</span>: <span class="num">true</span>
+
+    <span class="cmt"># --- 2. 健全性確認 (oc get node 相当) ---</span>
+    - <span class="key">name</span>: <span class="str">List worker nodes</span>
+      <span class="key">kubernetes.core.k8s_info</span>:
+        <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+        <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+        <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+        <span class="key">kind</span>: <span class="str">Node</span>
+        <span class="key">label_selectors</span>:
+          - <span class="str">node-role.kubernetes.io/worker</span>
+      <span class="key">register</span>: <span class="str">workers</span>
+
+    <span class="cmt"># --- 3. ローリングメンテ (cordon → drain → uncordon) ---</span>
+    - <span class="key">name</span>: <span class="str">Rolling maintenance per worker</span>
+      <span class="key">include_tasks</span>: <span class="str">tasks/maintain_node.yml</span>
+      <span class="key">loop</span>: <span class="str">"{{ workers.resources | map(attribute='metadata.name') | list }}"</span>
+      <span class="key">loop_control</span>:
+        <span class="key">loop_var</span>: <span class="str">node_name</span>
+
+    <span class="cmt"># --- 4. クリーンアップ (oc adm prune 相当) ---</span>
+    - <span class="key">name</span>: <span class="str">Prune old deployments cluster-wide</span>
+      <span class="key">community.okd.openshift_adm_prune_deployments</span>:
+        <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+        <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+        <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+        <span class="key">keep_younger_than</span>: <span class="num">120</span>
+
+    - <span class="key">name</span>: <span class="str">Prune old builds</span>
+      <span class="key">community.okd.openshift_adm_prune_builds</span>:
+        <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+        <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+        <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+        <span class="key">keep_younger_than</span>: <span class="num">240</span>
+
+  <span class="cmt"># --- 5. 最後に必ずログアウト ---</span>
+  <span class="key">post_tasks</span>:
+    - <span class="key">name</span>: <span class="str">Logout (oc logout 相当)</span>
+      <span class="key">community.okd.openshift_auth</span>:
+        <span class="key">state</span>: <span class="str">absent</span>
+        <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+        <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+        <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+      <span class="key">when</span>: <span class="str">ocp.openshift_auth.api_key is defined</span></code></pre>
+
+  <h3><code>tasks/maintain_node.yml</code></h3>
+  <pre><code>- <span class="key">name</span>: <span class="str">Cordon {{ node_name }}</span>
+  <span class="key">kubernetes.core.k8s_drain</span>:
+    <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+    <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+    <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+    <span class="key">name</span>: <span class="str">"{{ node_name }}"</span>
+    <span class="key">state</span>: <span class="str">cordon</span>
+
+- <span class="key">name</span>: <span class="str">Drain {{ node_name }}</span>
+  <span class="key">kubernetes.core.k8s_drain</span>:
+    <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+    <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+    <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+    <span class="key">name</span>: <span class="str">"{{ node_name }}"</span>
+    <span class="key">state</span>: <span class="str">drain</span>
+    <span class="key">delete_options</span>:
+      <span class="key">ignore_daemonsets</span>: <span class="num">true</span>
+      <span class="key">delete_emptydir_data</span>: <span class="num">true</span>
+      <span class="key">terminate_grace_period</span>: <span class="num">600</span>
+
+- <span class="key">name</span>: <span class="str">Reboot {{ node_name }} (外部 IaaS 経由など、別途実装)</span>
+  <span class="key">ansible.builtin.debug</span>:
+    <span class="key">msg</span>: <span class="str">"&lt;ここで OS リブートや AMI 更新を実行&gt;"</span>
+
+- <span class="key">name</span>: <span class="str">Wait until node Ready again</span>
+  <span class="key">kubernetes.core.k8s_info</span>:
+    <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+    <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+    <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+    <span class="key">kind</span>: <span class="str">Node</span>
+    <span class="key">name</span>: <span class="str">"{{ node_name }}"</span>
+  <span class="key">register</span>: <span class="str">n</span>
+  <span class="key">until</span>: <span class="str">n.resources[0].status.conditions
+        | selectattr('type', 'eq', 'Ready')
+        | map(attribute='status') | first == "True"</span>
+  <span class="key">retries</span>: <span class="num">60</span>
+  <span class="key">delay</span>: <span class="num">10</span>
+
+- <span class="key">name</span>: <span class="str">Uncordon {{ node_name }}</span>
+  <span class="key">kubernetes.core.k8s_drain</span>:
+    <span class="key">host</span>: <span class="str">"{{ ocp_host }}"</span>
+    <span class="key">api_key</span>: <span class="str">"{{ ocp.openshift_auth.api_key }}"</span>
+    <span class="key">ca_cert</span>: <span class="str">"{{ ocp_ca }}"</span>
+    <span class="key">name</span>: <span class="str">"{{ node_name }}"</span>
+    <span class="key">state</span>: <span class="str">uncordon</span></code></pre>
+
+  <div class="callout tip">
+    <strong class="tag">設計のポイント</strong>
+    <p style="margin:0">接続情報（<code>host</code> / <code>api_key</code> / <code>ca_cert</code>）はタスクごとに繰り返し書く代わりに、<strong>module_defaults</strong> でまとめて指定するとさらに DRY になります。<code>module_defaults: { group/kubernetes.core.k8s: { host: ..., api_key: ..., ca_cert: ... } }</code> のように書けば、配下のタスクから引数を省略できます。</p>
+  </div>
+</section>
+
+<section id="refs">
+  <h2>参考リンク</h2>
+  <ul>
+    <li><a href="https://github.com/openshift/community.okd" target="_blank" rel="noopener">openshift/community.okd — リポジトリ</a></li>
+    <li><a href="https://docs.ansible.com/ansible/latest/collections/community/okd/index.html" target="_blank" rel="noopener">community.okd 公式ドキュメント</a></li>
+    <li><a href="https://docs.ansible.com/ansible/latest/collections/community/okd/openshift_auth_module.html" target="_blank" rel="noopener">openshift_auth モジュール詳細</a></li>
+    <li><a href="https://docs.ansible.com/ansible/latest/collections/community/okd/openshift_adm_prune_deployments_module.html" target="_blank" rel="noopener">openshift_adm_prune_deployments モジュール詳細</a></li>
+    <li><a href="https://docs.ansible.com/ansible/latest/collections/kubernetes/core/k8s_drain_module.html" target="_blank" rel="noopener">kubernetes.core.k8s_drain（cordon / drain / uncordon の本体）</a></li>
+    <li><a href="https://docs.openshift.com/container-platform/latest/cli_reference/openshift_cli/administrator-cli-commands.html" target="_blank" rel="noopener">oc adm コマンドリファレンス（OpenShift 公式）</a></li>
+    <li><a href="ansible-k8s-module.html">姉妹ページ：Ansible の k8s モジュールの仕組み</a></li>
+  </ul>
+</section>
+
+</div>
+</body>
+</html>

@@ -13,6 +13,7 @@
 | VSCode | [topics/vscode/vscode-multi-cursor.html](topics/vscode/vscode-multi-cursor.html) | Ctrl+D 系ショートカット徹底解説（複数カーソルの使いこなし） |
 | Node.js | [topics/nodejs/npm-vs-pnpm.html](topics/nodejs/npm-vs-pnpm.html) | npm と pnpm の違い（node_modules 構造・ファントム依存・ディスク・速度・コマンド対応表） |
 | Ansible | [topics/ansible/ansible-k8s-module.html](topics/ansible/ansible-k8s-module.html) | Ansible の k8s モジュールの仕組み（kubernetes.core / kube-apiserver REST 直叩き / 冪等性 / 認証 / SSA） |
+| Ansible | [topics/ansible/community-okd-module.html](topics/ansible/community-okd-module.html) | community.okd モジュール完全ガイド（oc login / oc get / oc adm 系を Playbook と 1 対 1 対応で解説） |
 
 ## 使い方
 
